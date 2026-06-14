@@ -1,73 +1,100 @@
-# React + TypeScript + Vite
+# 🐾 TinyCats — AI-Powered Cat Breed Recommendation Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+TinyCats is a modern web application designed to help users find the perfect cat breed for their household. Powered by Google Gemini AI and structured breed data delivered via the Model Context Protocol (MCP), it provides personalized recommendations through an onboarding wizard and an interactive chat interface.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📂 Project Architecture
 
-## React Compiler
+The repository is organized into three main components:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+Tiny-Cats/
+├── Backend/
+│   └── mcp-server/         # Node.js + Express MCP server hosting breed tools
+├── tinycats/               # React + TypeScript + Vite frontend client
+└── md/                     # Specifications, specifications (PRD, tech spec, schemas)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **Frontend (`tinycats/`):** Built with React 19, TypeScript, Redux Toolkit, Tailwind CSS, and shadcn/ui. Connects to the local MCP server at runtime to fetch and search breed data.
+- **Backend (`Backend/mcp-server/`):** Express HTTP server exposing tools to retrieve the breed catalog (21 breeds seeded), get detailed breed profiles, and search breeds based on size, coat length, friendliness, and tags.
+- **Specifications (`md/`):** Contains the product requirements, design guidelines, data schemas, and technical specs.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🛠️ Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- `pnpm` (recommended package manager)
+
+---
+
+### 1. Set Up and Run the MCP Server
+
+The MCP server runs on port `3001` and serves breed data over Server-Sent Events (SSE).
+
+1. Navigate to the backend directory:
+   ```bash
+   cd Backend/mcp-server
+   ```
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Start the server in development mode:
+   ```bash
+   npx tsx watch src/index.ts
+   ```
+
+To verify the server is running, check the health endpoint at:
+`GET http://localhost:3001/health`
+
+---
+
+### 2. Set Up and Run the Frontend Client
+
+The frontend client connects to the MCP server and Google Gemini.
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd tinycats
+   ```
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Create a `.env` file in the root of the `tinycats` directory:
+   ```env
+   VITE_GEMINI_API_KEY=YOUR_GOOGLE_GEMINI_API_KEY
+   VITE_MCP_SERVER_URL=http://localhost:3001/mcp
+   VITE_APP_ENV=development
+   ```
+4. Start the Vite development server:
+   ```bash
+   pnpm run dev
+   ```
+5. Open your browser and navigate to:
+   [http://localhost:5173](http://localhost:5173)
+
+---
+
+## 🔌 Model Context Protocol (MCP) Tools
+
+The MCP server registers the following tools for structured breed retrieval:
+
+| Tool Name | Parameters | Description |
+|---|---|---|
+| `get_breed_list` | `{}` | Returns the full list of all 21 seeded cat breeds. |
+| `get_breed_detail` | `{ breedId: string }` | Returns the detailed profile of a specific breed. |
+| `search_breeds` | `{ filters?: BreedFilters, limit?: number }` | Filters breeds based on tags, size, coat length, and traits. |
+
+---
+
+## 🧩 Features Implemented
+
+- **Onboarding Quiz:** A 7-step wizard matching user lifestyle (space, activity, allergy, experience) with breeds.
+- **AI Recommendation Engine:** Streams matching scores and summaries directly from Google Gemini.
+- **Interactive Chat Panel:** Converse with a Gemini-powered cat expert injected with your quiz recommendations context.
+- **Breed Catalog & Filters:** Browse all 21 breeds with real-time in-memory filtering.
+- **Compare & Save:** Compare up to 3 breeds side-by-side; save favorites to local storage.
