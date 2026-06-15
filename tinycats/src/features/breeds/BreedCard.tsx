@@ -180,8 +180,8 @@ export function BreedCard({ breed, recommendation, className }: BreedCardProps) 
               isInCompare
                 ? `${breed.name} is in compare list`
                 : isCompareFull
-                ? 'Compare list is full (max 3)'
-                : `Add ${breed.name} to compare`
+                  ? 'Compare list is full (max 3)'
+                  : `Add ${breed.name} to compare`
             }
             aria-pressed={isInCompare}
             title={isCompareFull ? 'Remove a breed from compare to add more' : undefined}
