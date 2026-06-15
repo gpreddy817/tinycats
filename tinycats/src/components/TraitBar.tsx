@@ -24,10 +24,10 @@ export function TraitBar({
     ? value <= 2
       ? '#34D399'  // success green — very low = great
       : value <= 4
-      ? '#86EFAC'  // light green
-      : value <= 6
-      ? '#FBBF24'  // warning
-      : '#F87171'  // danger — high = problematic
+        ? '#86EFAC'  // light green
+        : value <= 6
+          ? '#FBBF24'  // warning
+          : '#F87171'  // danger — high = problematic
     : '#7C5CBF';   // primary purple for normal traits
 
   return (
