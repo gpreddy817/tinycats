@@ -1,13 +1,13 @@
-import type { QuizAnswers } from '@/types/quiz';
+import type { QuizAnswers } from './quiz';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
 export interface Message {
-  id: string;                   // crypto.randomUUID()
+  id: string;
   role: MessageRole;
   content: string;
-  timestamp: string;            // ISO 8601
-  isStreaming?: boolean;        // true while chunk is being appended
+  timestamp: string;
+  isStreaming?: boolean;
 }
 
 export interface ChatContext {
