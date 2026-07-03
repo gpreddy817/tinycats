@@ -1,156 +1,290 @@
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
-  startQuiz,
+  selectCurrentStep,
+  selectTotalSteps,
+  selectQuizAnswers,
   setAnswer,
   nextStep,
   prevStep,
   completeQuiz,
-  selectCurrentStep,
-  selectTotalSteps,
-  selectQuizAnswers,
-} from '@/features/quiz/quizSlice';
+} from './quizSlice';
 import { fetchRecommendations } from '@/features/recommendations/recommendationsSlice';
-import { QuizStep, QUIZ_STEPS } from '@/features/quiz/QuizStep';
+import { selectAllBreeds } from '@/features/breeds/breedsSlice';
+import { QuizStep } from './QuizStep';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
-import type { QuizAnswers } from '@/types/quiz';
-import { useEffect } from 'react';
+import { ArrowLeft, ArrowRight, Sparkles, Check } from 'lucide-react';
 
-export function QuizWizard() {
-  const dispatch = useAppDispatch();
+export const QuizWizard: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  
   const currentStep = useAppSelector(selectCurrentStep);
   const totalSteps = useAppSelector(selectTotalSteps);
   const answers = useAppSelector(selectQuizAnswers);
+  const allBreeds = useAppSelector(selectAllBreeds);
 
-  useEffect(() => {
-    dispatch(startQuiz());
-  }, [dispatch]);
-
-  const step = QUIZ_STEPS[currentStep];
-  if (!step) return null;
-
-  const currentValue = answers[step.id as keyof QuizAnswers];
-  const isFinalStep = currentStep === totalSteps - 1;
-  const progressPct = Math.round(((currentStep + 1) / totalSteps) * 100);
-
-  // Validate: single/multi steps require a selection; text is optional
-  const canProceed =
-    step.type === 'text' || (currentValue !== undefined && (step.type !== 'multi' || (currentValue as string[]).length > 0));
-
-  const handleChange = (value: QuizAnswers[keyof QuizAnswers]) => {
-    dispatch(setAnswer({ key: step.id as keyof QuizAnswers, value }));
+  const handleAnswer = (key: any, value: any) => {
+    dispatch(setAnswer({ key, value }));
   };
 
   const handleNext = () => {
-    if (!canProceed) return;
-    if (isFinalStep) {
-      handleSubmit();
+    if (currentStep === totalSteps - 1) {
+      // Complete quiz and fetch recommendations thunk
+      dispatch(completeQuiz());
+      dispatch(fetchRecommendations(answers));
+      navigate('/results');
     } else {
       dispatch(nextStep());
     }
   };
 
-  const handleSubmit = () => {
-    dispatch(completeQuiz());
-    // Cast answers since we've validated all required fields by the final step
-    void dispatch(fetchRecommendations(answers as QuizAnswers));
-    navigate('/results');
+  const handleBack = () => {
+    dispatch(prevStep());
   };
 
+  // Real-time matching scoring algorithm for the sidebar
+  const liveMatches = useMemo(() => {
+    if (!allBreeds || allBreeds.length === 0) return [];
+
+    const scored = allBreeds.map((breed) => {
+      let score = 0;
+      let totalWeight = 0;
+
+      // 1. Living Space
+      if (answers.livingSpace) {
+        totalWeight += 2;
+        if (answers.livingSpace === 'apartment') {
+          // Prefers quiet, small/medium, indoor-friendly cats
+          score += breed.size !== 'large' ? 2 : 0;
+          score += breed.traits.energy <= 5 ? 2 : 0;
+        } else if (answers.livingSpace === 'house') {
+          score += 2; // Houses fit all cats
+        } else if (answers.livingSpace === 'house-outdoor') {
+          // Prefers active or outdoor-friendly breeds
+          score += breed.traits.energy >= 6 ? 2 : 1;
+        }
+      }
+
+      // 2. Activity Level
+      if (answers.activityLevel) {
+        totalWeight += 3;
+        const target = answers.activityLevel === 'low' ? 3 : answers.activityLevel === 'moderate' ? 6 : 9;
+        const diff = Math.abs(breed.traits.energy - target);
+        score += Math.max(0, 3 - diff * 0.5);
+      }
+
+      // 3. Allergy Sensitivity
+      if (answers.allergySensitivity) {
+        totalWeight += 3;
+        if (answers.allergySensitivity === 'severe') {
+          score += breed.traits.allergenLevel <= 2 ? 3 : 0;
+        } else if (answers.allergySensitivity === 'mild') {
+          score += breed.traits.allergenLevel <= 3 ? 3 : 1;
+        } else {
+          score += 3; // Any breed fits
+        }
+      }
+
+      // 4. Cat Experience
+      if (answers.catExperience) {
+        totalWeight += 2;
+        if (answers.catExperience === 'first-time') {
+          // Use 10 - sociability as a proxy for independence
+          const independence = 10 - breed.traits.sociability;
+          score += independence <= 6 ? 2 : 0;
+        } else {
+          score += 2; // Experienced fit any
+        }
+      }
+
+      // 5. Affection Preference
+      if (answers.affectionPreference) {
+        totalWeight += 3;
+        const target = answers.affectionPreference === 'independent' ? 2 : answers.affectionPreference === 'balanced' ? 6 : 10;
+        const diff = Math.abs(breed.traits.sociability - target);
+        score += Math.max(0, 3 - diff * 0.5);
+      }
+
+      // 6. Household Type
+      if (answers.household && answers.household.length > 0) {
+        totalWeight += answers.household.length * 2;
+        answers.household.forEach((h) => {
+          if (h === 'kids') {
+            score += breed.traits.childFriendly >= 7 ? 2 : 0;
+          } else if (h === 'other-pets') {
+            score += breed.traits.dogFriendly >= 7 ? 2 : 0;
+          } else {
+            score += 2;
+          }
+        });
+      }
+
+      const matchPct = totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
+
+      return {
+        breed,
+        matchPct,
+      };
+    });
+
+    // Sort by match percentage desc and pick top 2
+    return scored
+      .filter((item) => item.matchPct > 40)
+      .sort((a, b) => b.matchPct - a.matchPct)
+      .slice(0, 2);
+  }, [answers, allBreeds]);
+
+  // Is current step filled?
+  const canProceed = useMemo(() => {
+    switch (currentStep) {
+      case 0: return !!answers.livingSpace;
+      case 1: return !!answers.activityLevel;
+      case 2: return !!answers.allergySensitivity;
+      case 3: return !!answers.catExperience;
+      case 4: return !!answers.affectionPreference;
+      case 5: return !!answers.household && answers.household.length > 0;
+      case 6: return true; // freeText is optional
+      default: return false;
+    }
+  }, [currentStep, answers]);
+
+  const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
+
   return (
-    <div className="w-full max-w-lg mx-auto px-4 py-8 animate-slide-up">
-      {/* Progress Bar */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-2">
-          <span
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            Step {currentStep + 1} of {totalSteps}
-          </span>
-          <span
-            className="text-sm font-semibold"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            {progressPct}%
-          </span>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* Quiz Form Column */}
+      <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-10 shadow-premium border border-stone-100/50 flex flex-col min-h-[500px]">
+        {/* Progress header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center text-xs font-semibold text-stone-500 mb-2">
+            <span className="uppercase tracking-wider">Personality Quiz</span>
+            <span>Step {currentStep + 1} of {totalSteps}</span>
+          </div>
+          <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
         </div>
-        <div
-          className="w-full rounded-full overflow-hidden"
-          style={{ height: '6px', backgroundColor: 'var(--color-border)' }}
-          role="progressbar"
-          aria-valuenow={currentStep + 1}
-          aria-valuemin={1}
-          aria-valuemax={totalSteps}
-          aria-label={`Quiz progress: step ${currentStep + 1} of ${totalSteps}`}
-        >
-          <div
-            className="h-full rounded-full trait-bar-fill"
-            style={{
-              width: `${progressPct}%`,
-              backgroundColor: 'var(--color-primary)',
-            }}
+
+        {/* Step Content */}
+        <div className="flex-grow">
+          <QuizStep
+            step={currentStep}
+            answers={answers}
+            onAnswer={handleAnswer}
           />
         </div>
-      </div>
 
-      {/* Question */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl" aria-hidden="true">{step.emoji}</span>
-          <h2
-            className="text-xl font-semibold leading-snug"
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}
-            id={`quiz-question-${currentStep}`}
+        {/* Navigation Buttons */}
+        <div className="flex justify-between items-center pt-8 border-t border-stone-100 mt-8">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 0}
+            className="flex items-center gap-2"
           >
-            {step.question}
-          </h2>
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant={currentStep === totalSteps - 1 ? 'sage' : 'primary'}
+            onClick={handleNext}
+            disabled={!canProceed}
+            className="flex items-center gap-2 min-w-[120px]"
+          >
+            {currentStep === totalSteps - 1 ? (
+              <>
+                <span>Get Matches</span>
+                <Sparkles size={16} />
+              </>
+            ) : (
+              <>
+                <span>Next</span>
+                <ArrowRight size={16} />
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Step Content */}
-      <QuizStep step={step} value={currentValue} onChange={handleChange} />
+      {/* Live Matching Sidebar Column */}
+      <div className="lg:col-span-4 bg-white/70 backdrop-blur rounded-3xl p-6 shadow-premium border border-stone-100/60 sticky top-24 self-start">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="bg-primary/10 text-primary p-2 rounded-xl">
+            <Sparkles size={18} />
+          </div>
+          <div>
+            <h3 className="font-display font-bold text-lg text-stone-900 leading-tight">Live Matches</h3>
+            <p className="text-[10px] text-stone-500">Updating as you answer</p>
+          </div>
+        </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center mt-8 gap-4">
-        <Button
-          variant="ghost"
-          size="default"
-          onClick={() => dispatch(prevStep())}
-          disabled={currentStep === 0}
-          id="quiz-back-btn"
-          aria-label="Previous question"
-        >
-          <ChevronLeft size={16} />
-          Back
-        </Button>
-
-        <Button
-          variant={isFinalStep ? 'default' : 'default'}
-          size="lg"
-          onClick={handleNext}
-          disabled={!canProceed}
-          id={isFinalStep ? 'quiz-submit-btn' : 'quiz-next-btn'}
-          aria-label={isFinalStep ? 'Get my cat recommendations' : 'Next question'}
-          className="min-w-[160px]"
-        >
-          {isFinalStep ? (
-            <>
-              <Sparkles size={16} />
-              Get My Recommendations
-            </>
+        <div className="space-y-4">
+          {liveMatches.length === 0 ? (
+            <div className="text-center py-10 text-stone-400 bg-stone-50/50 rounded-2xl border border-dashed border-stone-200">
+              <p className="text-xs">Answer a few questions to see your matches in real-time!</p>
+            </div>
           ) : (
-            <>
-              Next
-              <ChevronRight size={16} />
-            </>
+            liveMatches.map(({ breed, matchPct }) => (
+              <div
+                key={breed.id}
+                className="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-primary/20 transition-all duration-200"
+              >
+                <img
+                  src={breed.images.hero}
+                  alt={breed.name}
+                  className="w-12 h-12 rounded-xl object-cover"
+                />
+                <div className="flex-grow min-w-0">
+                  <h4 className="font-bold text-stone-800 text-sm truncate">{breed.name}</h4>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] font-bold text-accent">{matchPct}% Match</span>
+                    <span className="text-[9px] text-stone-400">•</span>
+                    <span className="text-[10px] text-stone-500 capitalize truncate">{breed.size} size</span>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
-        </Button>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-stone-100 text-left">
+          <h4 className="font-bold text-stone-800 text-xs mb-2">Quiz Summary</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {answers.livingSpace && (
+              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Check size={10} className="text-sage" />
+                <span>Living: {answers.livingSpace}</span>
+              </span>
+            )}
+            {answers.activityLevel && (
+              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Check size={10} className="text-sage" />
+                <span>Activity: {answers.activityLevel}</span>
+              </span>
+            )}
+            {answers.allergySensitivity && (
+              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Check size={10} className="text-sage" />
+                <span>Allergies: {answers.allergySensitivity}</span>
+              </span>
+            )}
+            {answers.catExperience && (
+              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Check size={10} className="text-sage" />
+                <span>Experience: {answers.catExperience}</span>
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
-}
-
-export default QuizWizard;
+};
