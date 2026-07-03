@@ -1,77 +1,52 @@
-import { cn } from '@/lib/utils';
+import React from 'react';
 import type { Message } from '@/types/chat';
+import { Bot, User } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
-  const isSystem = message.role === 'system';
-
-  if (isSystem) return null;
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+  const isAssistant = message.role === 'assistant';
 
   return (
     <div
-      className={cn(
-        'flex items-end gap-2 animate-slide-up',
-        isUser ? 'justify-end' : 'justify-start'
-      )}
+      className={`flex items-start gap-3 w-full animate-fade-in ${
+        isAssistant ? 'justify-start' : 'justify-end'
+      }`}
     >
-      {!isUser && (
-        <div
-          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-          style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
-          aria-hidden="true"
-        >
-          🐾
+      {/* Icon for Assistant */}
+      {isAssistant && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+          <Bot size={16} />
         </div>
       )}
 
+      {/* Bubble text */}
       <div
-        className={cn(
-          'max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed',
-          isUser
-            ? 'rounded-br-sm'
-            : 'rounded-bl-sm'
-        )}
-        style={
-          isUser
-            ? {
-                backgroundColor: 'var(--color-primary)',
-                color: 'white',
-              }
-            : {
-                backgroundColor: 'var(--color-primary-light)',
-                color: 'var(--color-text-primary)',
-              }
-        }
+        className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
+          isAssistant
+            ? 'bg-stone-100 text-stone-800 rounded-tl-none border border-stone-200/50'
+            : 'bg-primary text-white rounded-tr-none'
+        }`}
       >
-        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {message.content}
-        </span>
-        {message.isStreaming && (
-          <span
-            className="animate-blink ml-0.5 font-bold"
-            style={{ color: isUser ? 'white' : 'var(--color-primary)' }}
-            aria-hidden="true"
-          >
-            _
-          </span>
-        )}
+        {message.content ? (
+          <p className="whitespace-pre-line">{message.content}</p>
+        ) : message.isStreaming ? (
+          <div className="flex items-center gap-1 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-stone-500 animate-bounce" />
+            <span className="w-1.5 h-1.5 rounded-full bg-stone-500 animate-bounce [animation-delay:0.2s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-stone-500 animate-bounce [animation-delay:0.4s]" />
+          </div>
+        ) : null}
       </div>
 
-      {isUser && (
-        <div
-          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm"
-          style={{ backgroundColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-          aria-hidden="true"
-        >
-          👤
+      {/* Icon for User */}
+      {!isAssistant && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-sage/10 text-sage flex items-center justify-center border border-sage/20">
+          <User size={16} />
         </div>
       )}
     </div>
   );
-}
-
-export default MessageBubble;
+};
