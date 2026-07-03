@@ -1,37 +1,27 @@
 const PREFIX = 'tinycats:';
 
-/**
- * Reads a value from localStorage under the tinycats: namespace.
- * Returns null if key doesn't exist or value can't be parsed.
- */
-export function storageGet<T>(key: string): T | null {
+export const storageGet = <T>(key: string, defaultValue: T): T => {
   try {
-    const raw = localStorage.getItem(PREFIX + key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
+    const value = localStorage.getItem(`${PREFIX}${key}`);
+    return value ? JSON.parse(value) : defaultValue;
+  } catch (error) {
+    console.error(`Error reading from localStorage key "${key}":`, error);
+    return defaultValue;
   }
-}
+};
 
-/**
- * Writes a value to localStorage under the tinycats: namespace.
- * Fails silently if storage is full or unavailable.
- */
-export function storageSet<T>(key: string, value: T): void {
+export const storageSet = <T>(key: string, value: T): void => {
   try {
-    localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    // Storage full or unavailable — fail silently
+    localStorage.setItem(`${PREFIX}${key}`, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error writing to localStorage key "${key}":`, error);
   }
-}
+};
 
-/**
- * Removes a key from localStorage under the tinycats: namespace.
- */
-export function storageRemove(key: string): void {
+export const storageRemove = (key: string): void => {
   try {
-    localStorage.removeItem(PREFIX + key);
-  } catch {
-    // Fail silently
+    localStorage.removeItem(`${PREFIX}${key}`);
+  } catch (error) {
+    console.error(`Error removing localStorage key "${key}":`, error);
   }
-}
+};
