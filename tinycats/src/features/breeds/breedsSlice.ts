@@ -1,51 +1,48 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { mcpClient } from '@/services/mcpService';
-import type { Breed, BreedsState } from '@/types/breed';
+import type { Breed } from '@/types/breed';
 import type { RootState } from '@/app/store';
-import fallbackData from '@/data/breeds.fallback.json';
+import { BREEDS } from '@/data/breedsData';
 
-const fallbackBreeds = fallbackData as Breed[];
-
-export const fetchBreeds = createAsyncThunk(
-  'breeds/fetchAll',
-  async (_, { rejectWithValue }) => {
-    try {
-      return await mcpClient.getBreedList();
-    } catch (err) {
-      console.error('[MCP] fetchBreeds failed, using fallback:', err);
-      return rejectWithValue('MCP unavailable');
-    }
-  }
-);
-
-export const fetchBreedDetail = createAsyncThunk(
-  'breeds/fetchDetail',
-  async (breedId: string, { getState, rejectWithValue }) => {
-    const state = getState() as RootState;
-    // Return cached breed if already loaded
-    const cached = state.breeds.entities[breedId];
-    if (cached) return cached;
-
-    try {
-      return await mcpClient.getBreedDetail(breedId);
-    } catch (err) {
-      console.error('[MCP] fetchBreedDetail failed, trying fallback:', err);
-      const fallback = fallbackBreeds.find((b) => b.id === breedId);
-      if (fallback) return fallback;
-      return rejectWithValue(`Breed not found: ${breedId}`);
-    }
-  }
-);
+interface BreedsState {
+  entities: Record<string, Breed>;
+  ids: string[];
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  usingFallback: boolean;
+  savedBreeds: string[];
+  compareList: string[];
+}
 
 const initialState: BreedsState = {
   entities: {},
   ids: [],
   status: 'idle',
-  error: null,
+  usingFallback: false,
   savedBreeds: [],
   compareList: [],
-  usingFallback: false,
 };
+
+export const fetchBreeds = createAsyncThunk('breeds/fetchAll', async () => {
+  try {
+    const res = await fetch('/api/breeds');
+    if (!res.ok) throw new Error('Server unavailable');
+    const data = (await res.json()) as { breeds: Breed[] };
+    return data.breeds;
+  } catch {
+    return BREEDS; // fallback
+  }
+});
+
+export const fetchBreedDetail = createAsyncThunk('breeds/fetchDetail', async (breedId: string) => {
+  try {
+    const res = await fetch(`/api/breeds/${breedId}`);
+    if (!res.ok) throw new Error('Not found');
+    return (await res.json()) as Breed;
+  } catch {
+    const fallback = BREEDS.find((b) => b.id === breedId);
+    if (!fallback) throw new Error('Breed not found');
+    return fallback;
+  }
+});
 
 const breedsSlice = createSlice({
   name: 'breeds',
@@ -53,87 +50,54 @@ const breedsSlice = createSlice({
   reducers: {
     toggleSaveBreed(state, action: PayloadAction<string>) {
       const id = action.payload;
-      const idx = state.savedBreeds.indexOf(id);
-      if (idx === -1) {
-        state.savedBreeds.push(id);
+      if (state.savedBreeds.includes(id)) {
+        state.savedBreeds = state.savedBreeds.filter((b) => b !== id);
       } else {
-        state.savedBreeds.splice(idx, 1);
+        state.savedBreeds.push(id);
       }
     },
     addToCompare(state, action: PayloadAction<string>) {
-      if (
-        state.compareList.length < 3 &&
-        !state.compareList.includes(action.payload)
-      ) {
+      if (state.compareList.length < 3 && !state.compareList.includes(action.payload)) {
         state.compareList.push(action.payload);
       }
     },
     removeFromCompare(state, action: PayloadAction<string>) {
       state.compareList = state.compareList.filter((id) => id !== action.payload);
     },
-    loadSavedState(
-      state,
-      action: PayloadAction<{ savedBreeds: string[]; compareList: string[] }>
-    ) {
-      state.savedBreeds = action.payload.savedBreeds;
-      state.compareList = action.payload.compareList;
+    clearCompare(state) {
+      state.compareList = [];
     },
   },
   extraReducers: (builder) => {
     builder
-      // fetchBreeds
-      .addCase(fetchBreeds.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
+      .addCase(fetchBreeds.pending, (state) => { state.status = 'loading'; })
       .addCase(fetchBreeds.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.usingFallback = false;
-        action.payload.forEach((breed) => {
-          state.entities[breed.id] = breed;
-          if (!state.ids.includes(breed.id)) state.ids.push(breed.id);
-        });
+        action.payload.forEach((b) => { state.entities[b.id] = b; });
+        state.ids = action.payload.map((b) => b.id);
+        state.usingFallback = !navigator.onLine;
       })
       .addCase(fetchBreeds.rejected, (state) => {
-        state.status = 'succeeded'; // Still show data — from fallback
+        state.status = 'failed';
         state.usingFallback = true;
-        state.error = null;
-        // Load fallback breeds
-        fallbackBreeds.forEach((breed) => {
-          state.entities[breed.id] = breed;
-          if (!state.ids.includes(breed.id)) state.ids.push(breed.id);
-        });
+        BREEDS.forEach((b) => { state.entities[b.id] = b; });
+        state.ids = BREEDS.map((b) => b.id);
       })
-      // fetchBreedDetail
       .addCase(fetchBreedDetail.fulfilled, (state, action) => {
-        const breed = action.payload;
-        state.entities[breed.id] = breed;
-        if (!state.ids.includes(breed.id)) state.ids.push(breed.id);
-      })
-      .addCase(fetchBreedDetail.rejected, (state, action) => {
-        state.error = action.payload as string;
+        const b = action.payload;
+        state.entities[b.id] = b;
+        if (!state.ids.includes(b.id)) state.ids.push(b.id);
       });
   },
 });
 
-export const { toggleSaveBreed, addToCompare, removeFromCompare, loadSavedState } =
-  breedsSlice.actions;
+export const { toggleSaveBreed, addToCompare, removeFromCompare, clearCompare } = breedsSlice.actions;
 
-// Selectors
-export const selectAllBreeds = (state: RootState): Breed[] =>
-  state.breeds.ids.map((id) => state.breeds.entities[id]).filter((b): b is Breed => !!b);
-
-export const selectBreedById = (id: string) => (state: RootState): Breed | undefined =>
-  state.breeds.entities[id];
-
-export const selectBreedsStatus = (state: RootState) => state.breeds.status;
-export const selectUsingFallback = (state: RootState) => state.breeds.usingFallback;
-export const selectSavedBreeds = (state: RootState) => state.breeds.savedBreeds;
-export const selectCompareList = (state: RootState) => state.breeds.compareList;
-
-export const selectCompareBreeds = (state: RootState): Breed[] =>
-  state.breeds.compareList
-    .map((id) => state.breeds.entities[id])
-    .filter((b): b is Breed => !!b);
+export const selectAllBreeds = (s: RootState) => s.breeds.ids.map((id) => s.breeds.entities[id]).filter(Boolean) as Breed[];
+export const selectBreedById = (id: string) => (s: RootState) => s.breeds.entities[id];
+export const selectBreedsStatus = (s: RootState) => s.breeds.status;
+export const selectSavedBreeds = (s: RootState) => s.breeds.savedBreeds;
+export const selectCompareList = (s: RootState) => s.breeds.compareList;
+export const selectUsingFallback = (s: RootState) => s.breeds.usingFallback;
 
 export default breedsSlice.reducer;
