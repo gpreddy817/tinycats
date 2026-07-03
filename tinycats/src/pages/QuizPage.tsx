@@ -1,85 +1,29 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from '@/app/hooks';
-import { selectQuizCompleted, resetQuiz } from '@/features/quiz/quizSlice';
-import { fetchBreeds } from '@/features/breeds/breedsSlice';
-import { clearRecommendations } from '@/features/recommendations/recommendationsSlice';
-import { clearMessages } from '@/features/chat/chatSlice';
+import React, { useEffect } from 'react';
 import { QuizWizard } from '@/features/quiz/QuizWizard';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { useAppDispatch } from '@/app/hooks';
+import { startQuiz } from '@/features/quiz/quizSlice';
+import { fetchBreeds } from '@/features/breeds/breedsSlice';
 
-export default function QuizPage() {
+export const QuizPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const isCompleted = useAppSelector(selectQuizCompleted);
 
-  // Preload breed data in the background so it's ready for results
   useEffect(() => {
-    void dispatch(fetchBreeds());
+    dispatch(startQuiz());
+    dispatch(fetchBreeds()); // Make sure breeds are loaded for the live matches sidebar
   }, [dispatch]);
 
-  // If quiz was already completed, offer to restart or view results
-  if (isCompleted) {
-    return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center gap-6 px-4 text-center"
-        style={{ backgroundColor: 'var(--color-surface)' }}
-      >
-        <span className="text-5xl">🐾</span>
-        <h2
-          className="text-2xl font-bold"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}
-        >
-          Quiz already completed!
-        </h2>
-        <p style={{ color: 'var(--color-text-secondary)' }}>
-          Would you like to view your results or start fresh?
-        </p>
-        <div className="flex gap-3 flex-wrap justify-center">
-          <Button id="view-results-btn" variant="default" size="lg" onClick={() => navigate('/results')}>
-            View My Results
-          </Button>
-          <Button
-            id="retake-quiz-btn"
-            variant="outline"
-            size="lg"
-            onClick={() => {
-              dispatch(resetQuiz());
-              dispatch(clearRecommendations());
-              dispatch(clearMessages());
-            }}
-          >
-            Retake Quiz
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-surface)' }}>
-      {/* Top bar */}
-      <header className="flex items-center px-4 py-4 max-w-2xl mx-auto">
-        <button
-          id="quiz-home-btn"
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-sm font-medium"
-          style={{ color: 'var(--color-text-secondary)' }}
-          aria-label="Go back to home"
-        >
-          <ArrowLeft size={16} />
-          <span
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)', fontWeight: 700 }}
-          >
-            TinyCats
-          </span>
-        </button>
-      </header>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 text-left">
+      <div className="mb-8">
+        <h1 className="font-display font-black text-3xl sm:text-5xl text-stone-900 tracking-tight mb-2">
+          Purrfect Partner Quiz
+        </h1>
+        <p className="text-stone-500 text-sm max-w-xl">
+          Answer a few questions about your living space, allergy sensitivities, and social habits, and we'll use Gemini AI to find your ideal cat matches.
+        </p>
+      </div>
 
-      <main className="flex flex-col items-center min-h-[calc(100vh-64px)]">
-        <QuizWizard />
-      </main>
+      <QuizWizard />
     </div>
   );
-}
+};
