@@ -1,203 +1,144 @@
-import { useRef, useEffect, useState, type KeyboardEvent } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import {
   selectMessages,
   selectIsStreaming,
   selectChatError,
-  clearError,
-  addStreamingMessage,
-  addMessage,
-  appendToken,
-  finishStreaming,
-  setError,
-} from '@/features/chat/chatSlice';
-import { streamChatReply } from '@/services/geminiService';
-import { MessageBubble } from '@/features/chat/MessageBubble';
-import { Button } from '@/components/ui/button';
-import { Send, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+  sendChatMessage,
+  clearChat,
+  selectChatContext,
+} from './chatSlice';
+import { MessageBubble } from './MessageBubble';
+import { Send, Trash2, HelpCircle } from 'lucide-react';
 
-export function ChatPanel() {
+export const ChatPanel: React.FC = () => {
   const dispatch = useAppDispatch();
   const messages = useAppSelector(selectMessages);
   const isStreaming = useAppSelector(selectIsStreaming);
-  const chatError = useAppSelector(selectChatError);
+  const error = useAppSelector(selectChatError);
+  const context = useAppSelector(selectChatContext);
 
-  const [inputValue, setInputValue] = useState('');
-  const [lastUserText, setLastUserText] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [input, setInput] = useState('');
+  const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to latest message
+  // Auto scroll to bottom
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-    }
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async (userText?: string) => {
-    const text = (userText ?? inputValue).trim();
-    if (!text || isStreaming) return;
+  const handleSend = (textToSend?: string) => {
+    const finalMsg = (textToSend || input).trim();
+    if (!finalMsg || isStreaming) return;
 
-    // Sanitize
-    const sanitized = text.replace(/<[^>]*>/g, '');
+    dispatch(sendChatMessage({ userMessage: finalMsg, context }));
+    setInput('');
+  };
 
-    setInputValue('');
-    setLastUserText(sanitized);
-    dispatch(clearError());
-
-    dispatch(addMessage({ role: 'user', content: sanitized }));
-
-    const aiMsgId = crypto.randomUUID();
-    dispatch(addStreamingMessage({ id: aiMsgId }));
-
-    try {
-      const generator = streamChatReply(messages, sanitized);
-      for await (const token of generator) {
-        dispatch(appendToken({ id: aiMsgId, token }));
-      }
-      dispatch(finishStreaming(aiMsgId));
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to reach AI';
-      dispatch(setError(errMsg));
+  const handleClear = () => {
+    if (window.confirm('Clear your chat history?')) {
+      dispatch(clearChat());
     }
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  };
-
-  const handleRetry = () => {
-    dispatch(clearError());
-    void handleSend(lastUserText);
-  };
-
-  const visibleMessages = messages.filter((m) => m.role !== 'system');
+  const suggestions = [
+    'Which of these is best for kids?',
+    'Are any of these hypoallergenic?',
+    'What is their typical lifespan?',
+  ];
 
   return (
-    <div
-      className="flex flex-col rounded-2xl overflow-hidden border"
-      style={{
-        backgroundColor: 'var(--color-card)',
-        borderColor: 'var(--color-border)',
-        height: '100%',
-        minHeight: '480px',
-      }}
-    >
-      {/* Header */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 border-b"
-        style={{
-          borderColor: 'var(--color-border)',
-          backgroundColor: 'var(--color-primary-light)',
-        }}
-      >
-        <Sparkles size={16} style={{ color: 'var(--color-primary)' }} />
-        <span className="font-semibold text-sm" style={{ color: 'var(--color-primary)' }}>
-          TinyCats AI
-        </span>
-        {isStreaming && (
-          <span className="ml-auto text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-            Thinking…
-          </span>
+    <div className="flex flex-col h-full bg-white rounded-3xl shadow-premium border border-stone-100 overflow-hidden">
+      {/* Chat Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100 bg-stone-50/50">
+        <div>
+          <h3 className="font-display font-bold text-base text-stone-900 flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-sage animate-pulse" />
+            <span>TinyCats AI Assistant</span>
+          </h3>
+          <p className="text-[10px] text-stone-500">Ask about breed matches, care guides, and diets</p>
+        </div>
+        
+        {messages.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="text-stone-400 hover:text-primary transition-colors p-1.5 hover:bg-stone-100 rounded-lg cursor-pointer"
+            title="Clear Chat"
+          >
+            <Trash2 size={16} />
+          </button>
         )}
       </div>
 
-      {/* Message History */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 flex flex-col gap-4"
-        aria-live="polite"
-        aria-label="Chat messages"
-        aria-relevant="additions"
-        style={{ minHeight: 0 }}
-      >
-        {visibleMessages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-4">
-            <span className="text-4xl">🐱</span>
-            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-              Complete the quiz to get your personalized recommendations, then ask me anything!
-            </p>
-          </div>
-        )}
-        {visibleMessages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
-
-        {/* Error state */}
-        {chatError && (
-          <div
-            className="flex items-start gap-3 p-3 rounded-xl"
-            style={{
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FECACA',
-            }}
-            role="alert"
-          >
-            <AlertCircle size={16} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: '2px' }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm" style={{ color: '#991B1B' }}>
-                Couldn't reach AI, please try again.
+      {/* Messages List */}
+      <div className="flex-grow overflow-y-auto p-6 space-y-4 no-scrollbar min-h-[300px]">
+        {messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-4 py-8">
+            <div className="w-12 h-12 bg-primary/5 text-primary rounded-2xl flex items-center justify-center border border-primary/10">
+              <HelpCircle size={24} />
+            </div>
+            <div className="max-w-xs">
+              <h4 className="font-semibold text-stone-800 text-sm mb-1">Ask anything about your matches</h4>
+              <p className="text-xs text-stone-500 leading-normal">
+                Ask about grooming needs, health risks, kid friendliness, or compare their temperaments.
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRetry}
-              id="chat-retry-btn"
-              aria-label="Retry last message"
-              className="flex-shrink-0"
-            >
-              <RefreshCw size={14} />
-              Retry
-            </Button>
+
+            {/* Suggestions list */}
+            <div className="pt-4 flex flex-col gap-2 w-full max-w-xs">
+              {suggestions.map((sug) => (
+                <button
+                  key={sug}
+                  onClick={() => handleSend(sug)}
+                  className="text-left text-xs bg-stone-50 hover:bg-stone-100 border border-stone-200/50 rounded-xl px-3 py-2 text-stone-600 font-medium transition-all duration-200 cursor-pointer hover:border-primary/20"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
           </div>
+        ) : (
+          messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
         )}
+        <div ref={chatBottomRef} />
       </div>
 
-      {/* Input Area */}
-      <div
-        className="border-t p-3 flex items-end gap-2"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <textarea
-          ref={inputRef}
-          id="chat-input"
-          aria-label="Ask a question about cat breeds"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask about a breed, or tell me more about your lifestyle…"
-          disabled={isStreaming}
-          rows={1}
-          className="flex-1 resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none"
-          style={{
-            borderColor: 'var(--color-border)',
-            backgroundColor: 'var(--color-surface)',
-            color: 'var(--color-text-primary)',
-            fontFamily: 'var(--font-sans)',
-            maxHeight: '100px',
-            outlineColor: 'var(--color-primary)',
+      {/* Error state */}
+      {error && (
+        <div className="px-6 py-2 bg-primary/10 border-t border-primary/20 text-xs text-primary-hover font-semibold">
+          Error: {error}
+        </div>
+      )}
+
+      {/* Chat Input */}
+      <div className="p-4 border-t border-stone-100 bg-white">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
           }}
-          maxLength={1000}
-        />
-        <Button
-          id="chat-send-btn"
-          variant="default"
-          size="icon"
-          onClick={() => void handleSend()}
-          disabled={!inputValue.trim() || isStreaming}
-          aria-label="Send message"
-          className="flex-shrink-0 h-10 w-10"
+          className="flex items-center gap-2"
         >
-          <Send size={16} />
-        </Button>
+          <input
+            type="text"
+            placeholder="Type your question..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={isStreaming}
+            className="flex-grow text-sm text-stone-700 placeholder-stone-400 bg-stone-50 border border-stone-200 rounded-full px-5 py-3 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || isStreaming}
+            className={`p-3 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              input.trim() && !isStreaming
+                ? 'bg-primary text-white hover:bg-primary-hover shadow-md'
+                : 'bg-stone-100 text-stone-400'
+            }`}
+          >
+            <Send size={18} />
+          </button>
+        </form>
       </div>
     </div>
   );
-}
-
-export default ChatPanel;
+};
