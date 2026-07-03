@@ -1,9 +1,7 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
-import { streamRecommendations } from '@/services/geminiService';
-import { addMessage } from '@/features/chat/chatSlice';
-import type { RecommendationsState, BreedRecommendation, GeminiRecommendationResponse } from '@/types/recommendations';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import type { RecommendationsState, BreedRecommendation } from '@/types/recommendations';
 import type { QuizAnswers } from '@/types/quiz';
-import type { RootState, AppDispatch } from '@/app/store';
+import type { RootState } from '@/app/store';
 
 const initialState: RecommendationsState = {
   results: [],
@@ -12,73 +10,36 @@ const initialState: RecommendationsState = {
   generatedAt: null,
 };
 
-export const fetchRecommendations = createAsyncThunk<
-  BreedRecommendation[],
-  QuizAnswers,
-  { dispatch: AppDispatch; rejectValue: string }
->(
+export const fetchRecommendations = createAsyncThunk(
   'recommendations/fetch',
-  async (answers, { dispatch, rejectWithValue }) => {
+  async (answers: Partial<QuizAnswers>, { rejectWithValue }) => {
     try {
-      // Accumulate the full streamed response — never store generators in state
-      let accumulated = '';
-      const generator = streamRecommendations(answers);
-
-      for await (const chunk of generator) {
-        accumulated += chunk;
-      }
-
-      // Strip markdown code fences if Gemini wraps response in them
-      const cleaned = accumulated
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim();
-
-      const parsed = JSON.parse(cleaned) as GeminiRecommendationResponse;
-
-      // Dispatch the intro message to chat
-      dispatch(
-        addMessage({
-          role: 'assistant',
-          content: parsed.intro,
-        })
-      );
-
-      // Map to BreedRecommendation with rank
-      const results: BreedRecommendation[] = parsed.recommendations.map(
-        (rec, index) => ({
-          breedId: rec.breedId,
-          breedName: formatBreedName(rec.breedId),
-          matchScore: rec.matchScore,
-          matchReasons: rec.matchReasons,
-          aiSummary: rec.aiSummary,
-          rank: index + 1,
-        })
-      );
-
-      return results;
+      const res = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      });
+      if (!res.ok) throw new Error('Server error');
+      const data = (await res.json()) as {
+        recommendations: BreedRecommendation[];
+        intro: string;
+      };
+      return data;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to get recommendations';
-      return rejectWithValue(message);
+      return rejectWithValue((err as Error).message);
     }
   }
 );
-
-function formatBreedName(id: string): string {
-  return id
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
 
 const recommendationsSlice = createSlice({
   name: 'recommendations',
   initialState,
   reducers: {
-    clearRecommendations() {
-      return initialState;
+    clearRecommendations(state) {
+      state.results = [];
+      state.status = 'idle';
+      state.error = null;
+      state.generatedAt = null;
     },
   },
   extraReducers: (builder) => {
@@ -87,23 +48,22 @@ const recommendationsSlice = createSlice({
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(fetchRecommendations.fulfilled, (state, action: PayloadAction<BreedRecommendation[]>) => {
+      .addCase(fetchRecommendations.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.results = action.payload;
+        state.results = action.payload.recommendations;
         state.generatedAt = new Date().toISOString();
       })
       .addCase(fetchRecommendations.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload ?? 'Unknown error';
+        state.error = action.payload as string;
       });
   },
 });
 
 export const { clearRecommendations } = recommendationsSlice.actions;
 
-// Selectors
-export const selectRecommendations = (state: RootState) => state.recommendations.results;
-export const selectRecommendationsStatus = (state: RootState) => state.recommendations.status;
-export const selectRecommendationsError = (state: RootState) => state.recommendations.error;
+export const selectRecommendations = (s: RootState) => s.recommendations.results;
+export const selectRecommendationsStatus = (s: RootState) => s.recommendations.status;
+export const selectRecommendationsError = (s: RootState) => s.recommendations.error;
 
 export default recommendationsSlice.reducer;

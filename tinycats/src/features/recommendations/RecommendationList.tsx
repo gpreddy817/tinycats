@@ -1,73 +1,33 @@
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { useAppSelector } from '@/app/hooks';
-import {
-  selectRecommendations,
-  selectRecommendationsStatus,
-  selectRecommendationsError,
-} from '@/features/recommendations/recommendationsSlice';
-import { selectBreedById } from '@/features/breeds/breedsSlice';
-import { BreedCard } from '@/features/breeds/BreedCard';
+import { selectRecommendations, selectRecommendationsStatus, selectRecommendationsError } from './recommendationsSlice';
+import { selectAllBreeds } from '@/features/breeds/breedsSlice';
+import { BreedCard } from '../breeds/BreedCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { Sparkles, RefreshCw } from 'lucide-react';
-import type { RootState } from '@/app/store';
-import { useAppDispatch } from '@/app/hooks';
-import { fetchRecommendations } from '@/features/recommendations/recommendationsSlice';
-import { selectQuizAnswers } from '@/features/quiz/quizSlice';
-import type { QuizAnswers } from '@/types/quiz';
+import { Frown, Sparkles } from 'lucide-react';
 
-function SkeletonCard() {
-  return (
-    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
-      <Skeleton style={{ height: '200px', borderRadius: 0 }} />
-      <div className="p-5 flex flex-col gap-3">
-        <Skeleton style={{ height: '24px', width: '60%' }} />
-        <Skeleton style={{ height: '16px', width: '40%' }} />
-        <div className="flex gap-2">
-          <Skeleton style={{ height: '22px', width: '70px', borderRadius: '9999px' }} />
-          <Skeleton style={{ height: '22px', width: '80px', borderRadius: '9999px' }} />
-        </div>
-        <Skeleton style={{ height: '40px' }} />
-        <div className="flex gap-2">
-          <Skeleton style={{ height: '36px', flex: 1 }} />
-          <Skeleton style={{ height: '36px', width: '100px' }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BreedCardWithData({ breedId, ...rest }: { breedId: string } & Omit<Parameters<typeof BreedCard>[0], 'breed'>) {
-  const breed = useAppSelector((state: RootState) => selectBreedById(breedId)(state));
-  if (!breed) return null;
-  return <BreedCard breed={breed} {...rest} />;
-}
-
-export function RecommendationList() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+export const RecommendationList: React.FC = () => {
   const recommendations = useAppSelector(selectRecommendations);
   const status = useAppSelector(selectRecommendationsStatus);
   const error = useAppSelector(selectRecommendationsError);
-  const quizAnswers = useAppSelector(selectQuizAnswers);
-
-  const handleRetry = () => {
-    if (quizAnswers) {
-      void dispatch(fetchRecommendations(quizAnswers as QuizAnswers));
-    }
-  };
+  const allBreeds = useAppSelector(selectAllBreeds);
 
   if (status === 'loading') {
     return (
-      <div>
-        <div className="flex items-center gap-2 mb-6">
-          <Sparkles size={20} style={{ color: 'var(--color-primary)' }} />
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            Finding your perfect matches…
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {[1, 2, 3, 4, 5].map((n) => <SkeletonCard key={n} />)}
+      <div className="space-y-6">
+        <div className="h-10 w-2/3 bg-stone-200 animate-pulse rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm h-96 flex flex-col">
+              <Skeleton className="h-48 w-full" />
+              <div className="p-6 space-y-4 flex-grow">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-8 w-full mt-auto" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -75,65 +35,56 @@ export function RecommendationList() {
 
   if (status === 'failed') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-        <span className="text-5xl">😿</span>
-        <h2 className="text-xl font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>
-          Couldn't load recommendations
-        </h2>
-        <p className="text-sm max-w-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          {error ?? 'Something went wrong. Please try again.'}
-        </p>
-        <Button id="retry-recommendations-btn" variant="default" onClick={handleRetry}>
-          <RefreshCw size={16} />
-          Try Again
-        </Button>
+      <div className="text-center py-12 bg-white rounded-3xl border border-stone-100 shadow-sm p-8 max-w-md mx-auto">
+        <Frown className="mx-auto text-primary mb-4" size={48} />
+        <h3 className="font-display font-bold text-lg text-stone-900 mb-2">Something went wrong</h3>
+        <p className="text-sm text-stone-600 mb-6">{error || 'Could not load matches.'}</p>
       </div>
     );
   }
 
-  if (status === 'succeeded' && recommendations.length === 0) {
+  if (recommendations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-        <span className="text-5xl">🔍</span>
-        <h2 className="text-xl font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>
-          Let's broaden your search
-        </h2>
-        <p className="text-sm max-w-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          We couldn't find matches for your exact preferences. Try adjusting your allergy or activity preferences.
-        </p>
-        <Button id="retake-quiz-btn" variant="default" onClick={() => navigate('/quiz')}>
-          Retake the Quiz
-        </Button>
+      <div className="text-center py-12 bg-white rounded-3xl border border-stone-100 shadow-sm p-8 max-w-md mx-auto">
+        <Frown className="mx-auto text-stone-400 mb-4" size={48} />
+        <h3 className="font-display font-bold text-lg text-stone-900 mb-2">No recommendations yet</h3>
+        <p className="text-sm text-stone-600 mb-6">Complete the personality quiz to get tailored recommendations from Gemini AI.</p>
       </div>
     );
   }
+
+  // Combine recommendations with the full breed traits from Redux
+  const matchedBreeds = recommendations.map((rec) => {
+    const breedDetail = allBreeds.find((b) => b.id === rec.breedId);
+    return {
+      rec,
+      breedDetail,
+    };
+  }).filter((item) => item.breedDetail !== undefined);
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
-        <Sparkles size={18} style={{ color: 'var(--color-primary)' }} />
-        <h2
-          className="text-lg font-semibold"
-          style={{ color: 'var(--color-text-primary)' }}
-        >
-          Your Top Matches
-        </h2>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="bg-accent/20 p-2 rounded-xl text-primary">
+          <Sparkles size={20} />
+        </div>
+        <div>
+          <h2 className="font-display font-bold text-2xl text-stone-900">Your Top Matches</h2>
+          <p className="text-xs text-stone-500">Curated specifically for you by Gemini AI</p>
+        </div>
       </div>
-      <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-        {recommendations.length} breeds matched your profile, ranked by compatibility
-      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {recommendations.map((rec) => (
-          <BreedCardWithData
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {matchedBreeds.map(({ rec, breedDetail }, index) => (
+          <BreedCard
             key={rec.breedId}
-            breedId={rec.breedId}
-            recommendation={rec}
+            breed={breedDetail!}
+            matchScore={rec.matchScore}
+            matchReasons={rec.matchReasons}
+            rank={index + 1}
           />
         ))}
       </div>
     </div>
   );
-}
-
-export default RecommendationList;
+};
