@@ -1,222 +1,185 @@
-import { cn } from '@/lib/utils';
-import type {
-  LivingSpace,
-  ActivityLevel,
-  AllergySensitivity,
-  CatExperience,
-  AffectionPreference,
-  HouseholdType,
-  QuizAnswers,
-} from '@/types/quiz';
-
-export interface QuizStepDef {
-  id: keyof QuizAnswers;
-  question: string;
-  emoji: string;
-  type: 'single' | 'multi' | 'text';
-  options?: Array<{ value: string; label: string; emoji: string; description?: string }>;
-  placeholder?: string;
-}
-
-export const QUIZ_STEPS: QuizStepDef[] = [
-  {
-    id: 'livingSpace',
-    question: 'What is your living situation?',
-    emoji: '🏠',
-    type: 'single',
-    options: [
-      { value: 'apartment' as LivingSpace, label: 'Apartment', emoji: '🏢', description: 'No outdoor access' },
-      { value: 'house' as LivingSpace, label: 'House', emoji: '🏡', description: 'Indoor only' },
-      { value: 'house-outdoor' as LivingSpace, label: 'House with outdoor access', emoji: '🌿', description: 'Garden or enclosed yard' },
-    ],
-  },
-  {
-    id: 'activityLevel',
-    question: 'How would you describe your activity level?',
-    emoji: '⚡',
-    type: 'single',
-    options: [
-      { value: 'low' as ActivityLevel, label: 'Couch potato', emoji: '🛋️', description: 'I prefer calm, relaxed days' },
-      { value: 'moderate' as ActivityLevel, label: 'Moderately active', emoji: '🚶', description: 'Active but enjoy downtime' },
-      { value: 'high' as ActivityLevel, label: 'Very active', emoji: '🏃', description: 'I love interactive play' },
-    ],
-  },
-  {
-    id: 'allergySensitivity',
-    question: 'Do you have cat allergies?',
-    emoji: '🤧',
-    type: 'single',
-    options: [
-      { value: 'none' as AllergySensitivity, label: 'No allergies', emoji: '✅', description: 'Any breed works for me' },
-      { value: 'mild' as AllergySensitivity, label: 'Mild sensitivity', emoji: '😊', description: 'Some breeds are better than others' },
-      { value: 'severe' as AllergySensitivity, label: 'Severe allergies', emoji: '⚠️', description: 'Need hypoallergenic only' },
-    ],
-  },
-  {
-    id: 'catExperience',
-    question: 'What is your experience with cats?',
-    emoji: '🐾',
-    type: 'single',
-    options: [
-      { value: 'first-time' as CatExperience, label: 'First-time owner', emoji: '🌱', description: 'Never had a cat before' },
-      { value: 'experienced' as CatExperience, label: 'Experienced', emoji: '😺', description: 'Had cats before' },
-      { value: 'very-experienced' as CatExperience, label: 'Very experienced', emoji: '🏆', description: 'Multiple cats, breeding experience' },
-    ],
-  },
-  {
-    id: 'affectionPreference',
-    question: 'How affectionate do you want your cat to be?',
-    emoji: '💜',
-    type: 'single',
-    options: [
-      { value: 'independent' as AffectionPreference, label: 'Independent', emoji: '🌙', description: 'Low-maintenance, does its own thing' },
-      { value: 'balanced' as AffectionPreference, label: 'Balanced', emoji: '⚖️', description: 'Affectionate but not clingy' },
-      { value: 'velcro' as AffectionPreference, label: 'Velcro cat', emoji: '🫂', description: 'Always by my side' },
-    ],
-  },
-  {
-    id: 'household',
-    question: 'Who else lives in your home?',
-    emoji: '👨‍👩‍👧',
-    type: 'multi',
-    options: [
-      { value: 'solo' as HouseholdType, label: 'Just me', emoji: '🙋', description: 'Living alone' },
-      { value: 'adults' as HouseholdType, label: 'Partner / adults only', emoji: '👫', description: 'No children' },
-      { value: 'kids' as HouseholdType, label: 'Children in the home', emoji: '👶', description: 'Kids under 12' },
-      { value: 'other-pets' as HouseholdType, label: 'Other pets', emoji: '🐕', description: 'Dogs or other animals' },
-    ],
-  },
-  {
-    id: 'freeText',
-    question: 'Anything else we should know?',
-    emoji: '✏️',
-    type: 'text',
-    placeholder: 'e.g. "I work from home," "I have a very small apartment," "I want a cat that gets along with my dog Buddy"…',
-  },
-];
+import React from 'react';
+import { Home, Landmark, Trees, ShieldCheck, ShieldAlert, Heart, Users, Award, Smile, Flame, ShieldPlus, Baby, Cat, MessageSquare, Activity } from 'lucide-react';
+import type { QuizAnswers } from '@/types/quiz';
 
 interface QuizStepProps {
-  step: QuizStepDef;
-  value: QuizAnswers[keyof QuizAnswers] | undefined;
-  onChange: (value: QuizAnswers[keyof QuizAnswers]) => void;
+  step: number;
+  answers: Partial<QuizAnswers>;
+  onAnswer: (key: keyof QuizAnswers, value: any) => void;
 }
 
-export function QuizStep({ step, value, onChange }: QuizStepProps) {
-  if (step.type === 'text') {
-    return (
-      <div className="flex flex-col gap-3">
-        <textarea
-          id={`quiz-step-${step.id}`}
-          className="w-full rounded-xl border p-4 text-base resize-none focus:outline-none"
-          style={{
-            borderColor: 'var(--color-border)',
-            color: 'var(--color-text-primary)',
-            backgroundColor: 'var(--color-card)',
-            minHeight: '120px',
-            fontFamily: 'var(--font-sans)',
-            outlineColor: 'var(--color-primary)',
-          }}
-          placeholder={step.placeholder}
-          value={(value as string | undefined) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={step.question}
-          maxLength={500}
-        />
-        <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          Optional — skip if nothing to add
-        </p>
-      </div>
-    );
-  }
+export const QuizStep: React.FC<QuizStepProps> = ({ step, answers, onAnswer }) => {
+  // Option Card render helper
+  const renderCard = (
+    key: keyof QuizAnswers,
+    value: string,
+    label: string,
+    desc: string,
+    icon: React.ReactNode,
+    isMulti = false
+  ) => {
+    const isSelected = isMulti
+      ? ((answers[key] as string[]) || []).includes(value)
+      : answers[key] === value;
 
-  if (step.type === 'multi') {
-    const selected = (value as string[] | undefined) ?? [];
-    const handleToggle = (optValue: string) => {
-      const newVal = selected.includes(optValue)
-        ? selected.filter((v) => v !== optValue)
-        : [...selected, optValue];
-      onChange(newVal as QuizAnswers[keyof QuizAnswers]);
+    const handleSelect = () => {
+      if (isMulti) {
+        const currentList = (answers[key] as string[]) || [];
+        if (currentList.includes(value)) {
+          onAnswer(
+            key,
+            currentList.filter((item) => item !== value)
+          );
+        } else {
+          onAnswer(key, [...currentList, value]);
+        }
+      } else {
+        onAnswer(key, value);
+      }
     };
 
     return (
-      <div className="flex flex-col gap-3" role="group" aria-label={step.question}>
-        {step.options?.map((opt) => {
-          const isSelected = selected.includes(opt.value);
-          return (
-            <button
-              key={opt.value}
-              id={`quiz-opt-${step.id}-${opt.value}`}
-              type="button"
-              role="checkbox"
-              aria-checked={isSelected}
-              onClick={() => handleToggle(opt.value)}
-              className={cn(
-                'flex items-center gap-4 w-full h-14 px-5 rounded-xl border-2 text-left transition-all duration-150',
-                isSelected
-                  ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
-              )}
-            >
-              <span className="text-xl" aria-hidden="true">{opt.emoji}</span>
-              <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                  {opt.label}
-                </span>
-                {opt.description && (
-                  <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                    {opt.description}
-                  </span>
-                )}
-              </div>
-              {isSelected && (
-                <span className="ml-auto text-[var(--color-primary)]" aria-hidden="true">✓</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <button
+        type="button"
+        onClick={handleSelect}
+        className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all duration-300 w-full cursor-pointer focus:outline-none ${
+          isSelected
+            ? 'border-sage bg-sage-light/60 shadow-sm ring-1 ring-sage'
+            : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50'
+        }`}
+      >
+        <div
+          className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+            isSelected
+              ? 'bg-sage text-white'
+              : 'bg-stone-100 text-stone-600'
+          }`}
+        >
+          {icon}
+        </div>
+        <div>
+          <h4 className="font-semibold text-stone-900 text-base mb-0.5">{label}</h4>
+          <p className="text-xs text-stone-500 leading-normal">{desc}</p>
+        </div>
+      </button>
     );
-  }
+  };
 
-  // Single select
-  return (
-    <div className="flex flex-col gap-3" role="radiogroup" aria-label={step.question}>
-      {step.options?.map((opt) => {
-        const isSelected = value === opt.value;
-        return (
-          <button
-            key={opt.value}
-            id={`quiz-opt-${step.id}-${opt.value}`}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            onClick={() => onChange(opt.value as QuizAnswers[keyof QuizAnswers])}
-            className={cn(
-              'flex items-center gap-4 w-full h-14 px-5 rounded-xl border-2 text-left transition-all duration-150',
-              isSelected
-                ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                : 'border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]'
-            )}
-          >
-            <span className="text-xl" aria-hidden="true">{opt.emoji}</span>
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                {opt.label}
-              </span>
-              {opt.description && (
-                <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  {opt.description}
-                </span>
-              )}
+  switch (step) {
+    case 0:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">What is your living arrangement?</h3>
+            <p className="text-sm text-stone-600">Cats thrive in different environments. Help us understand your home structure.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('livingSpace', 'apartment', 'Apartment / Condo', 'Cozy space, perfect for quiet and less active breeds.', <Home size={22} />)}
+            {renderCard('livingSpace', 'house', 'House (Indoor only)', 'Spacious home with plenty of room to roam and play safely indoors.', <Landmark size={22} />)}
+            {renderCard('livingSpace', 'house-outdoor', 'House (Indoor & Outdoor access)', 'Safe yard or patio space for climbing, exploration, and hunting.', <Trees size={22} />)}
+          </div>
+        </div>
+      );
+
+    case 1:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">How active would you like your cat to be?</h3>
+            <p className="text-sm text-stone-600">Some cats are high-energy acrobats; others are master nap-takers.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('activityLevel', 'low', 'Quiet & Chill', 'Laid-back, enjoys napping, cuddle sessions, and calm environments.', <Smile size={22} />)}
+            {renderCard('activityLevel', 'moderate', 'Moderately Playful', 'Enjoys toys, social interactions, and daily play sessions.', <Activity size={22} />)}
+            {renderCard('activityLevel', 'high', 'High Energy / Acrobat', 'Bouncing off walls, climbing tall furniture, highly intelligent, needs constant stimulation.', <Flame size={22} />)}
+          </div>
+        </div>
+      );
+
+    case 2:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">Any allergy concerns in your home?</h3>
+            <p className="text-sm text-stone-600">While no cat is 100% hypoallergenic, some produce significantly fewer allergens.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('allergySensitivity', 'none', 'No Allergies', 'Zero concerns. Can adopt high-shedding or fluffy cats.', <ShieldCheck size={22} />)}
+            {renderCard('allergySensitivity', 'mild', 'Mild Sneezes / Sensitive', 'React to some cats. Hypoallergenic or low-shedding breeds preferred.', <ShieldPlus size={22} />)}
+            {renderCard('allergySensitivity', 'severe', 'Severe Allergies', 'Significant allergy issues. Need highly hypoallergenic, low-dander, or hairless breeds.', <ShieldAlert size={22} />)}
+          </div>
+        </div>
+      );
+
+    case 3:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">What is your cat ownership experience?</h3>
+            <p className="text-sm text-stone-600">Some cats are highly independent and easy-going; others demand experienced handling.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('catExperience', 'first-time', 'First-Time Owner', 'Looking for a forgiving, friendly, and low-maintenance personality.', <Users size={22} />)}
+            {renderCard('catExperience', 'experienced', 'Have Owned Cats Before', 'Comfortable with grooming, dietary guidelines, and typical cat quirks.', <Award size={22} />)}
+            {renderCard('catExperience', 'very-experienced', 'Cat Connoisseur', 'Experienced with complex behaviors, medical care, high-needs or exotic breeds.', <Cat size={22} />)}
+          </div>
+        </div>
+      );
+
+    case 4:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">What type of bond do you want?</h3>
+            <p className="text-sm text-stone-600">How much attention and physical contact do you want from your cat?</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('affectionPreference', 'independent', 'Independent & Cool', 'Happy being home alone, likes affection on their own terms.', <Landmark size={22} />)}
+            {renderCard('affectionPreference', 'balanced', 'Friendly but Self-Sufficient', 'Welcomes you at the door, likes playtime, but content during the work day.', <Smile size={22} />)}
+            {renderCard('affectionPreference', 'velcro', 'Velcro Cat / constant sidekick', 'Wants to be in your lap, follows you room-to-room, craves intense attachment.', <Heart size={22} />)}
+          </div>
+        </div>
+      );
+
+    case 5:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">Who shares your household?</h3>
+            <p className="text-sm text-stone-600">Select all that apply. This helps us filter for child-safe or multi-pet friendly cats.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4">
+            {renderCard('household', 'solo', 'I live alone', 'Perfect quiet environment for more introverted breeds.', <Users size={22} />, true)}
+            {renderCard('household', 'adults', 'Other Adults', 'A bustling adult household with multiple social partners.', <Users size={22} />, true)}
+            {renderCard('household', 'kids', 'Children / Toddlers', 'Need breeds with exceptional patience, gentle nature, and high playfulness.', <Baby size={22} />, true)}
+            {renderCard('household', 'other-pets', 'Other Pets (Dogs/Cats)', 'Need breeds known for high sociability and ease with other animals.', <Cat size={22} />, true)}
+          </div>
+        </div>
+      );
+
+    case 6:
+      return (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">Anything else we should know?</h3>
+            <p className="text-sm text-stone-600">Specify vocal habits, grooming concerns, custom quirks or anything else. Gemini AI will incorporate this into your results!</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 focus-within:ring-1 focus-within:ring-sage focus-within:border-sage transition-all duration-200">
+            <div className="flex items-center gap-2 mb-3 text-stone-500">
+              <MessageSquare size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">Custom Preferences</span>
             </div>
-            {isSelected && (
-              <span className="ml-auto text-[var(--color-primary)]" aria-hidden="true">✓</span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+            <textarea
+              className="w-full min-h-32 text-stone-700 bg-transparent border-0 p-0 focus:outline-none focus:ring-0 text-sm resize-none"
+              placeholder="e.g. 'I want a vocal cat that chats with me', 'Must get along with a high energy Golden Retriever', 'Low grooming is a must!'"
+              value={answers.freeText || ''}
+              onChange={(e) => onAnswer('freeText', e.target.value)}
+            />
+          </div>
+        </div>
+      );
 
-export default QuizStep;
+    default:
+      return null;
+  }
+};

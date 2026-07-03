@@ -2,9 +2,11 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { QuizState, QuizAnswers } from '@/types/quiz';
 import type { RootState } from '@/app/store';
 
+const TOTAL_STEPS = 7;
+
 const initialState: QuizState = {
   currentStep: 0,
-  totalSteps: 7,
+  totalSteps: TOTAL_STEPS,
   answers: {},
   completed: false,
   startedAt: null,
@@ -16,22 +18,21 @@ const quizSlice = createSlice({
   initialState,
   reducers: {
     startQuiz(state) {
-      state.startedAt = new Date().toISOString();
+      if (!state.startedAt) {
+        state.startedAt = new Date().toISOString();
+      }
     },
-    setAnswer(
-      state,
-      action: PayloadAction<{ key: keyof QuizAnswers; value: QuizAnswers[keyof QuizAnswers] }>
-    ) {
+    setAnswer(state, action: PayloadAction<{ key: keyof QuizAnswers; value: QuizAnswers[keyof QuizAnswers] }>) {
       (state.answers as Record<string, unknown>)[action.payload.key] = action.payload.value;
     },
     nextStep(state) {
       if (state.currentStep < state.totalSteps - 1) {
-        state.currentStep++;
+        state.currentStep += 1;
       }
     },
     prevStep(state) {
       if (state.currentStep > 0) {
-        state.currentStep--;
+        state.currentStep -= 1;
       }
     },
     completeQuiz(state) {
@@ -39,19 +40,16 @@ const quizSlice = createSlice({
       state.completedAt = new Date().toISOString();
     },
     resetQuiz() {
-      return initialState;
+      return { ...initialState };
     },
   },
 });
 
-export const { startQuiz, setAnswer, nextStep, prevStep, completeQuiz, resetQuiz } =
-  quizSlice.actions;
+export const { startQuiz, setAnswer, nextStep, prevStep, completeQuiz, resetQuiz } = quizSlice.actions;
 
-// Selectors
-export const selectCurrentStep = (state: RootState) => state.quiz.currentStep;
-export const selectTotalSteps = (state: RootState) => state.quiz.totalSteps;
-export const selectQuizAnswers = (state: RootState) => state.quiz.answers;
-export const selectQuizCompleted = (state: RootState) => state.quiz.completed;
-export const selectQuizStartedAt = (state: RootState) => state.quiz.startedAt;
+export const selectCurrentStep = (s: RootState) => s.quiz.currentStep;
+export const selectTotalSteps = (s: RootState) => s.quiz.totalSteps;
+export const selectQuizAnswers = (s: RootState) => s.quiz.answers;
+export const selectQuizCompleted = (s: RootState) => s.quiz.completed;
 
 export default quizSlice.reducer;

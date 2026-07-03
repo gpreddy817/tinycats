@@ -11,15 +11,15 @@ export interface QuizAnswers {
   allergySensitivity: AllergySensitivity;
   catExperience: CatExperience;
   affectionPreference: AffectionPreference;
-  household: HouseholdType[];   // multi-select
-  freeText?: string;            // optional step 7
+  household: HouseholdType[];
+  freeText?: string;
 }
 
 export interface QuizState {
-  currentStep: number;          // 0-indexed
+  currentStep: number;
   totalSteps: number;
   answers: Partial<QuizAnswers>;
   completed: boolean;
-  startedAt: string | null;     // ISO 8601
+  startedAt: string | null;
   completedAt: string | null;
 }
