@@ -1,325 +1,239 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchBreeds, selectAllBreeds, selectBreedsStatus, selectUsingFallback } from '@/features/breeds/breedsSlice';
+import { fetchBreeds, selectAllBreeds, selectSavedBreeds, selectBreedsStatus } from '@/features/breeds/breedsSlice';
 import { BreedCard } from '@/features/breeds/BreedCard';
+import { Button } from '@/components/ui/button';
+import { Heart, Search, Filter, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search } from 'lucide-react';
-import type { Breed, SizeCategory, CoatLength } from '@/types/breed';
 
-type FilterState = {
-  search: string;
-  size: SizeCategory | '';
-  coatLength: CoatLength | '';
-  maxAllergen: number;
-  tags: string[];
-};
-
-const ALL_TAGS = [
-  'apartment', 'calm', 'playful', 'active', 'independent', 'family-friendly',
-  'dog-friendly', 'hypoallergenic', 'velcro-cat', 'intelligent', 'first-time-owner',
-  'quiet', 'social', 'low-grooming', 'low-maintenance',
-];
-
-function applyFilters(breeds: Breed[], filters: FilterState): Breed[] {
-  return breeds.filter((b) => {
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      if (!b.name.toLowerCase().includes(q) && !b.tagline.toLowerCase().includes(q)) {
-        return false;
-      }
-    }
-    if (filters.size && b.size !== filters.size) return false;
-    if (filters.coatLength && b.coatLength !== filters.coatLength) return false;
-    if (b.traits.allergenLevel > filters.maxAllergen) return false;
-    if (filters.tags.length > 0 && !filters.tags.every((t) => b.tags.includes(t))) return false;
-    return true;
-  });
-}
-
-export default function BrowsePage() {
+export const BrowsePage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const breeds = useAppSelector(selectAllBreeds);
-  const status = useAppSelector(selectBreedsStatus);
-  const usingFallback = useAppSelector(selectUsingFallback);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    size: '',
-    coatLength: '',
-    maxAllergen: 5,
-    tags: [],
-  });
+  const breeds = useAppSelector(selectAllBreeds);
+  const savedBreeds = useAppSelector(selectSavedBreeds);
+  const status = useAppSelector(selectBreedsStatus);
+
+  // Filters State
+  const [search, setSearch] = useState('');
+  const [size, setSize] = useState<string>('all');
+  const [coat, setCoat] = useState<string>('all');
+  const [allergen, setAllergen] = useState<number>(5);
+
+  const showSavedOnly = searchParams.get('saved') === 'true';
 
   useEffect(() => {
-    if (status === 'idle') {
-      void dispatch(fetchBreeds());
+    dispatch(fetchBreeds());
+  }, [dispatch]);
+
+  const handleToggleSaved = () => {
+    if (showSavedOnly) {
+      searchParams.delete('saved');
+    } else {
+      searchParams.set('saved', 'true');
     }
-  }, [dispatch, status]);
-
-  const filtered = useMemo(() => applyFilters(breeds, filters), [breeds, filters]);
-
-  const toggleTag = (tag: string) => {
-    setFilters((f) => ({
-      ...f,
-      tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
-    }));
+    setSearchParams(searchParams);
   };
 
-  const clearFilters = () => {
-    setFilters({ search: '', size: '', coatLength: '', maxAllergen: 5, tags: [] });
+  const handleResetFilters = () => {
+    setSearch('');
+    setSize('all');
+    setCoat('all');
+    setAllergen(5);
+    searchParams.delete('saved');
+    setSearchParams(searchParams);
   };
+
+  // Filtered Breeds
+  const filteredBreeds = useMemo(() => {
+    return breeds.filter((breed) => {
+      // 1. Text Search
+      if (
+        search.trim() &&
+        !breed.name.toLowerCase().includes(search.toLowerCase()) &&
+        !breed.tagline.toLowerCase().includes(search.toLowerCase()) &&
+        !breed.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+      ) {
+        return false;
+      }
+
+      // 2. Saved
+      if (showSavedOnly && !savedBreeds.includes(breed.id)) {
+        return false;
+      }
+
+      // 3. Size
+      if (size !== 'all' && breed.size !== size) {
+        return false;
+      }
+
+      // 4. Coat
+      if (coat !== 'all' && breed.coatLength !== coat) {
+        return false;
+      }
+
+      // 5. Allergen
+      if (breed.traits.allergenLevel > allergen) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [breeds, savedBreeds, search, size, coat, allergen, showSavedOnly]);
+
+  const isLoading = status === 'loading';
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-surface)' }}>
-      {/* Offline banner */}
-      {usingFallback && (
-        <div
-          role="status"
-          className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-center"
-          style={{ backgroundColor: '#FFFBEB', borderBottom: '1px solid #FDE68A', color: '#92400E' }}
-        >
-          📡 Using offline breed data
-        </div>
-      )}
-
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 text-left space-y-8">
       {/* Header */}
-      <header
-        className="border-b px-4 py-4 flex items-center justify-between flex-wrap gap-3"
-        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}
-      >
-        <button
-          id="browse-home-btn"
-          onClick={() => navigate('/')}
-          className="text-xl font-bold"
-          style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}
-        >
-          🐾 TinyCats
-        </button>
-        <span className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Browse All Breeds
-        </span>
-        <button
-          id="browse-quiz-btn"
-          onClick={() => navigate('/quiz')}
-          className="text-sm font-medium px-4 py-2 rounded-xl transition-all"
-          style={{
-            backgroundColor: 'var(--color-primary)',
-            color: 'white',
-          }}
-        >
-          Take the Quiz →
-        </button>
-      </header>
+      <div>
+        <h1 className="font-display font-black text-3xl sm:text-5xl text-stone-900 tracking-tight mb-2">
+          {showSavedOnly ? 'Your Saved Favorites' : 'Browse Cat Breeds'}
+        </h1>
+        <p className="text-stone-500 text-sm">
+          {showSavedOnly
+            ? `You have saved ${savedBreeds.length} feline companion profiles.`
+            : `Explore all ${breeds.length} recognized breeds and discover their unique details.`}
+        </p>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-8">
-        {/* Sidebar Filters */}
-        <aside
-          className="lg:w-64 flex-shrink-0"
-          aria-label="Breed filters"
-        >
-          <div
-            className="rounded-2xl p-5 border sticky top-6"
-            style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-base" style={{ color: 'var(--color-text-primary)' }}>Filters</h2>
-              {(filters.search || filters.size || filters.coatLength || filters.maxAllergen < 5 || filters.tags.length > 0) && (
-                <button
-                  id="clear-filters-btn"
-                  onClick={clearFilters}
-                  className="text-xs font-medium"
-                  style={{ color: 'var(--color-primary)' }}
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
+      {/* Main Grid: Filters Left, Cards Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Filters Sidebar */}
+        <div className="lg:col-span-3 bg-white rounded-3xl p-6 border border-stone-100 shadow-sm space-y-6">
+          <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+            <span className="font-display font-bold text-base text-stone-800 flex items-center gap-1.5">
+              <Filter size={18} className="text-primary" />
+              <span>Filters</span>
+            </span>
+            <button
+              onClick={handleResetFilters}
+              className="text-xs font-semibold text-stone-400 hover:text-primary transition-colors cursor-pointer"
+            >
+              Reset
+            </button>
+          </div>
 
-            {/* Search */}
-            <div className="mb-5">
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                Search
-              </label>
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-secondary)' }} />
-                <input
-                  id="breed-search-input"
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                  placeholder="Search breeds…"
-                  className="w-full pl-8 pr-3 py-2 text-sm rounded-xl border focus:outline-none"
-                  style={{
-                    borderColor: 'var(--color-border)',
-                    backgroundColor: 'var(--color-surface)',
-                    color: 'var(--color-text-primary)',
-                    outlineColor: 'var(--color-primary)',
-                  }}
-                  aria-label="Search breeds by name"
-                />
-              </div>
-            </div>
-
-            {/* Size */}
-            <div className="mb-5">
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                Size
-              </label>
-              <div className="flex flex-col gap-1.5">
-                {(['', 'small', 'medium', 'large'] as const).map((s) => (
-                  <button
-                    key={s}
-                    id={`filter-size-${s || 'all'}`}
-                    onClick={() => setFilters((f) => ({ ...f, size: s }))}
-                    className="text-left text-sm px-3 py-2 rounded-lg transition-colors"
-                    style={{
-                      backgroundColor: filters.size === s ? 'var(--color-primary-light)' : 'transparent',
-                      color: filters.size === s ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                      fontWeight: filters.size === s ? 600 : 400,
-                    }}
-                  >
-                    {s === '' ? 'Any size' : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Coat Length */}
-            <div className="mb-5">
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                Coat Length
-              </label>
-              <div className="flex flex-col gap-1.5">
-                {(['', 'short', 'medium', 'long', 'hairless'] as const).map((c) => (
-                  <button
-                    key={c}
-                    id={`filter-coat-${c || 'all'}`}
-                    onClick={() => setFilters((f) => ({ ...f, coatLength: c }))}
-                    className="text-left text-sm px-3 py-2 rounded-lg transition-colors"
-                    style={{
-                      backgroundColor: filters.coatLength === c ? 'var(--color-primary-light)' : 'transparent',
-                      color: filters.coatLength === c ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                      fontWeight: filters.coatLength === c ? 600 : 400,
-                    }}
-                  >
-                    {c === '' ? 'Any coat' : c.charAt(0).toUpperCase() + c.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Max Allergen */}
-            <div className="mb-5">
-              <label
-                className="block text-xs font-semibold uppercase tracking-wide mb-2"
-                style={{ color: 'var(--color-text-secondary)' }}
-                htmlFor="allergen-slider"
-              >
-                Max Allergen Level: {filters.maxAllergen === 5 ? 'Any' : filters.maxAllergen}
-              </label>
+          {/* Search Input */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Search</label>
+            <div className="relative">
               <input
-                id="allergen-slider"
-                type="range"
-                min={1}
-                max={5}
-                value={filters.maxAllergen}
-                onChange={(e) => setFilters((f) => ({ ...f, maxAllergen: parseInt(e.target.value) }))}
-                className="w-full"
-                aria-label={`Maximum allergen level: ${filters.maxAllergen}`}
-                style={{ accentColor: 'var(--color-primary)' }}
+                type="text"
+                placeholder="Search breeds, tags..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full text-sm text-stone-700 bg-stone-50 border border-stone-200 rounded-2xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
               />
-              <div className="flex justify-between text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                <span>Hypo</span>
-                <span>Heavy shed</span>
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                Tags
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {ALL_TAGS.map((tag) => {
-                  const active = filters.tags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      id={`filter-tag-${tag}`}
-                      onClick={() => toggleTag(tag)}
-                      className="text-xs px-2.5 py-1 rounded-full transition-all"
-                      style={{
-                        backgroundColor: active ? 'var(--color-primary)' : 'var(--color-primary-light)',
-                        color: active ? 'white' : 'var(--color-primary)',
-                        fontWeight: active ? 600 : 400,
-                      }}
-                      aria-pressed={active}
-                      aria-label={`Filter by ${tag.replace(/-/g, ' ')}`}
-                    >
-                      {tag.replace(/-/g, ' ')}
-                    </button>
-                  );
-                })}
-              </div>
+              <Search className="absolute left-3 top-3 text-stone-400" size={16} />
             </div>
           </div>
-        </aside>
 
-        {/* Breed Grid */}
-        <main className="flex-1" aria-label="Breed listings">
-          {/* Result count */}
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              {status === 'loading' ? 'Loading breeds…' : `${filtered.length} breed${filtered.length !== 1 ? 's' : ''} found`}
-            </p>
+          {/* Toggle Saved */}
+          <div className="flex items-center justify-between py-2 border-t border-b border-stone-100/50">
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">Favorites Only</span>
+            <button
+              onClick={handleToggleSaved}
+              className={`p-2 rounded-full border transition-all cursor-pointer ${
+                showSavedOnly
+                  ? 'bg-primary/10 border-primary text-primary'
+                  : 'bg-stone-50 border-stone-200 text-stone-400 hover:text-stone-600'
+              }`}
+              title="Show Saved Only"
+            >
+              <Heart size={16} className={showSavedOnly ? 'fill-primary' : ''} />
+            </button>
           </div>
 
-          {status === 'loading' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <div key={n} className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-card)' }}>
-                  <Skeleton style={{ height: '180px', borderRadius: 0 }} />
-                  <div className="p-5 flex flex-col gap-3">
-                    <Skeleton style={{ height: '22px', width: '55%' }} />
-                    <Skeleton style={{ height: '14px', width: '35%' }} />
-                    <Skeleton style={{ height: '36px' }} />
-                    <div className="flex gap-2">
-                      <Skeleton style={{ height: '32px', flex: 1 }} />
-                      <Skeleton style={{ height: '32px', width: '90px' }} />
-                    </div>
+          {/* Size Filter */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Size</label>
+            <select
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              className="w-full text-sm text-stone-700 bg-stone-50 border border-stone-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            >
+              <option value="all">All Sizes</option>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
+
+          {/* Coat Length */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Coat Length</label>
+            <select
+              value={coat}
+              onChange={(e) => setCoat(e.target.value)}
+              className="w-full text-sm text-stone-700 bg-stone-50 border border-stone-200 rounded-2xl px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+            >
+              <option value="all">All Lengths</option>
+              <option value="short">Short</option>
+              <option value="medium">Medium</option>
+              <option value="long">Long</option>
+              <option value="hairless">Hairless</option>
+            </select>
+          </div>
+
+          {/* Allergen Sensitivity Slider */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-bold text-stone-500 uppercase tracking-wider">
+              <span>Max Allergen Level</span>
+              <span className="text-stone-700">{allergen}/5</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={allergen}
+              onChange={(e) => setAllergen(parseInt(e.target.value))}
+              className="w-full accent-primary h-1.5 bg-stone-100 rounded-lg cursor-pointer appearance-none"
+            />
+            <span className="text-[10px] text-stone-400 leading-normal block">
+              1 = Hypoallergenic (Sphynx, etc.), 5 = Heavy Shedder (Maine Coon).
+            </span>
+          </div>
+        </div>
+
+        {/* Breed Grid Column */}
+        <div className="lg:col-span-9">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="bg-white rounded-3xl overflow-hidden shadow-sm h-96 flex flex-col">
+                  <Skeleton className="h-48 w-full" />
+                  <div className="p-6 space-y-4 flex-grow">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-8 w-full mt-auto" />
                   </div>
                 </div>
               ))}
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-              <span className="text-5xl">🔍</span>
-              <h3 className="text-xl font-semibold" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)' }}>
-                No breeds match your filters
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                Try broadening your search or clearing some filters.
+          ) : filteredBreeds.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-3xl border border-stone-100 shadow-sm p-8 space-y-4">
+              <div className="w-12 h-12 bg-stone-50 text-stone-400 rounded-2xl flex items-center justify-center border border-stone-200 mx-auto">
+                <X size={24} />
+              </div>
+              <h3 className="font-display font-bold text-lg text-stone-900">No Breeds Match Your Criteria</h3>
+              <p className="text-sm text-stone-500 max-w-xs mx-auto">
+                Try adjusting your search filters or resetting to display all cats.
               </p>
-              <button
-                id="clear-filters-empty-btn"
-                onClick={clearFilters}
-                className="text-sm font-semibold"
-                style={{ color: 'var(--color-primary)' }}
-              >
-                Clear all filters
-              </button>
+              <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                Clear All Filters
+              </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filtered.map((breed) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredBreeds.map((breed) => (
                 <BreedCard key={breed.id} breed={breed} />
               ))}
             </div>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );
-}
+};
