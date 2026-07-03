@@ -1,46 +1,47 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Breed } from '@/types/breed';
+import { BREEDS } from '@/data/breedsData';
 
-class BreedMCPClient {
-  private client: Client | null = null;
-  private connected = false;
-
-  private async connect(): Promise<void> {
-    const serverUrl = import.meta.env.VITE_MCP_SERVER_URL as string | undefined;
-    if (!serverUrl) {
-      throw new Error('VITE_MCP_SERVER_URL is not configured');
-    }
-    const transport = new SSEClientTransport(new URL(serverUrl));
-    this.client = new Client({ name: 'tinycats', version: '1.0.0' }, {});
-    await this.client.connect(transport);
-    this.connected = true;
+export const fetchAllBreeds = async (): Promise<Breed[]> => {
+  try {
+    const res = await fetch('/api/breeds');
+    if (!res.ok) throw new Error('Failed to fetch breeds from server');
+    return await res.json();
+  } catch (error) {
+    console.warn('MCP Server breed API failed, falling back to local static data:', error);
+    return BREEDS;
   }
+};
 
-  private async call<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
-    if (!this.connected || !this.client) {
-      await this.connect();
-    }
-    const result = await this.client!.callTool({ name: toolName, arguments: args });
-    const content = result.content as Array<{ type: string; text: string }>;
-    const firstContent = content[0];
-    if (!firstContent || firstContent.type !== 'text') {
-      throw new Error(`Unexpected MCP response format for tool: ${toolName}`);
-    }
-    return JSON.parse(firstContent.text) as T;
+export const fetchBreedById = async (id: string): Promise<Breed> => {
+  try {
+    const res = await fetch(`/api/breeds/${id}`);
+    if (!res.ok) throw new Error(`Failed to fetch breed details for ${id}`);
+    return await res.json();
+  } catch (error) {
+    console.warn(`MCP Server breed detail API failed for ${id}, falling back to local static data`);
+    const breed = BREEDS.find((b) => b.id === id || b.slug === id);
+    if (!breed) throw new Error(`Breed with ID ${id} not found`);
+    return breed;
   }
+};
 
-  async getBreedList(): Promise<Breed[]> {
-    return this.call<Breed[]>('get_breed_list', {});
+export const searchBreeds = async (query: string): Promise<Breed[]> => {
+  try {
+    const res = await fetch('/api/breeds/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error('Search failed on server');
+    return await res.json();
+  } catch (error) {
+    console.warn('MCP Server breed search API failed, falling back to local client search:', error);
+    const term = query.toLowerCase();
+    return BREEDS.filter(
+      (b) =>
+        b.name.toLowerCase().includes(term) ||
+        b.description.toLowerCase().includes(term) ||
+        b.tags.some((t) => t.toLowerCase().includes(term))
+    );
   }
-
-  async getBreedDetail(breedId: string): Promise<Breed> {
-    return this.call<Breed>('get_breed_detail', { breedId });
-  }
-
-  async searchBreeds(filters: Record<string, unknown>): Promise<{ breeds: Breed[]; total: number }> {
-    return this.call<{ breeds: Breed[]; total: number }>('search_breeds', { filters });
-  }
-}
-
-export const mcpClient = new BreedMCPClient();
+};
