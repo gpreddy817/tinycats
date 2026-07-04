@@ -1,8 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI, Tool, FunctionDeclaration } from '@google/generative-ai';
-import { BREEDS } from './src/data/breedsData.js';
-import type { Breed } from './src/types/breed.js';
+import { BREEDS } from './data/breedsData.js';
+import type { Breed } from './types/breed.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -33,7 +34,7 @@ const breedTools: Tool[] = [
             limit: { type: 'NUMBER' as const, description: 'Max results (default 5)' },
           },
           required: [],
-        },
+        } as any,
       } as FunctionDeclaration,
       {
         name: 'getCatBreedDetails',
@@ -44,7 +45,7 @@ const breedTools: Tool[] = [
             breedId: { type: 'STRING' as const, description: 'The breed ID e.g. ragdoll, maine-coon' },
           },
           required: ['breedId'],
-        },
+        } as any,
       } as FunctionDeclaration,
     ],
   },
@@ -152,32 +153,32 @@ app.post('/api/recommend', async (req, res) => {
 
     const prompt = `You are TinyCats AI, an expert cat breed matchmaker.
     
-User quiz answers:
-- Living space: ${String(answers.livingSpace)}
-- Activity level: ${String(answers.activityLevel)}
-- Allergy sensitivity: ${String(answers.allergySensitivity)}
-- Cat experience: ${String(answers.catExperience)}
-- Affection preference: ${String(answers.affectionPreference)}
-- Household: ${Array.isArray(answers.household) ? answers.household.join(', ') : String(answers.household)}
-- Additional notes: ${String(answers.freeText ?? 'None')}
-
-Available cat breeds matching initial criteria:
-${breedContext}
-
-Based on the user's quiz answers, select the TOP 5 most suitable cat breeds and respond ONLY with valid JSON in this exact format:
-{
-  "recommendations": [
+    User quiz answers:
+    - Living space: ${String(answers.livingSpace)}
+    - Activity level: ${String(answers.activityLevel)}
+    - Allergy sensitivity: ${String(answers.allergySensitivity)}
+    - Cat experience: ${String(answers.catExperience)}
+    - Affection preference: ${String(answers.affectionPreference)}
+    - Household: ${Array.isArray(answers.household) ? answers.household.join(', ') : String(answers.household)}
+    - Additional notes: ${String(answers.freeText ?? 'None')}
+    
+    Available cat breeds matching initial criteria:
+    ${breedContext}
+    
+    Based on the user's quiz answers, select the TOP 5 most suitable cat breeds and respond ONLY with valid JSON in this exact format:
     {
-      "breedId": "string",
-      "breedName": "string", 
-      "matchScore": number,
-      "matchReasons": ["reason1", "reason2", "reason3"],
-      "aiSummary": "1-2 sentence personalized explanation",
-      "rank": number
-    }
-  ],
-  "intro": "A warm 1-sentence opening message for the chat panel"
-}`;
+      "recommendations": [
+        {
+          "breedId": "string",
+          "breedName": "string", 
+          "matchScore": number,
+          "matchReasons": ["reason1", "reason2", "reason3"],
+          "aiSummary": "1-2 sentence personalized explanation",
+          "rank": number
+        }
+      ],
+      "intro": "A warm 1-sentence opening message for the chat panel"
+    }`;
 
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent(prompt);
@@ -223,10 +224,10 @@ app.post('/api/chat', async (req, res) => {
       .join(', ');
 
     const systemPrompt = `You are TinyCats AI, a warm, knowledgeable cat breed expert. 
-Help users find their perfect cat breed companion. Be friendly, concise, and helpful.
-${context?.quizAnswers ? `User context: ${JSON.stringify(context.quizAnswers)}` : ''}
-${topBreeds ? `User's top breed matches: ${topBreeds}` : ''}
-Keep responses under 150 words. Use markdown sparingly.`;
+    Help users find their perfect cat breed companion. Be friendly, concise, and helpful.
+    ${context?.quizAnswers ? `User context: ${JSON.stringify(context.quizAnswers)}` : ''}
+    ${topBreeds ? `User's top breed matches: ${topBreeds}` : ''}
+    Keep responses under 150 words. Use markdown sparingly.`;
 
     const history = messages.slice(0, -1).map((m) => ({
       role: m.role === 'user' ? 'user' : 'model',
