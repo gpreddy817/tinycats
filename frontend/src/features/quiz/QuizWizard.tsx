@@ -155,16 +155,16 @@ export const QuizWizard: React.FC = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       {/* Quiz Form Column */}
-      <div className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-10 shadow-premium border border-stone-100/50 flex flex-col min-h-[500px]">
+      <div className="lg:col-span-8 glass rounded-3xl p-6 sm:p-10 shadow-premium flex flex-col min-h-[500px] bg-white/50 hover:bg-white/60 transition-colors duration-300">
         {/* Progress header */}
         <div className="mb-8">
           <div className="flex justify-between items-center text-xs font-semibold text-stone-500 mb-2">
             <span className="uppercase tracking-wider">Personality Quiz</span>
             <span>Step {currentStep + 1} of {totalSteps}</span>
           </div>
-          <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-white/40 border border-white/20 h-2 rounded-full overflow-hidden">
             <div
-              className="bg-primary h-1.5 rounded-full transition-all duration-300 ease-out"
+              className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
@@ -180,7 +180,7 @@ export const QuizWizard: React.FC = () => {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between items-center pt-8 border-t border-stone-100 mt-8">
+        <div className="flex justify-between items-center pt-8 border-t border-white/20 mt-8">
           <Button
             type="button"
             variant="outline"
@@ -215,9 +215,9 @@ export const QuizWizard: React.FC = () => {
       </div>
 
       {/* Live Matching Sidebar Column */}
-      <div className="lg:col-span-4 bg-white/70 backdrop-blur rounded-3xl p-6 shadow-premium border border-stone-100/60 sticky top-24 self-start">
+      <div className="lg:col-span-4 glass rounded-3xl p-6 shadow-premium sticky top-24 self-start bg-white/50 hover:bg-white/60 transition-colors duration-300">
         <div className="flex items-center gap-2 mb-4">
-          <div className="bg-primary/10 text-primary p-2 rounded-xl">
+          <div className="bg-primary/10 text-primary p-2 rounded-xl border border-primary/20">
             <Sparkles size={18} />
           </div>
           <div>
@@ -228,14 +228,14 @@ export const QuizWizard: React.FC = () => {
 
         <div className="space-y-4">
           {liveMatches.length === 0 ? (
-            <div className="text-center py-10 text-stone-400 bg-stone-50/50 rounded-2xl border border-dashed border-stone-200">
+            <div className="text-center py-10 text-stone-400 bg-white/25 rounded-2xl border border-dashed border-white/40">
               <p className="text-xs">Answer a few questions to see your matches in real-time!</p>
             </div>
           ) : (
             liveMatches.map(({ breed, matchPct }) => (
               <div
                 key={breed.id}
-                className="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-stone-100 hover:border-primary/20 transition-all duration-200"
+                className="flex items-center gap-3 p-3 bg-white/30 glass rounded-2xl shadow-sm hover:border-primary/20 transition-all duration-200"
               >
                 <img
                   src={breed.images.hero}
@@ -255,36 +255,36 @@ export const QuizWizard: React.FC = () => {
           )}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-stone-100 text-left">
+        <div className="mt-6 pt-4 border-t border-white/25 text-left">
           <h4 className="font-bold text-stone-800 text-xs mb-2">Quiz Summary</h4>
           <div className="flex flex-wrap gap-1.5">
             {answers.livingSpace && (
-              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[9px] font-semibold bg-white/40 border border-white/30 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Check size={10} className="text-sage" />
                 <span>Living: {answers.livingSpace}</span>
               </span>
             )}
             {answers.activityLevel && (
-              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[9px] font-semibold bg-white/40 border border-white/30 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Check size={10} className="text-sage" />
                 <span>Activity: {answers.activityLevel}</span>
               </span>
             )}
             {answers.allergySensitivity && (
-              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[9px] font-semibold bg-white/40 border border-white/30 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Check size={10} className="text-sage" />
                 <span>Allergies: {answers.allergySensitivity}</span>
               </span>
             )}
             {answers.catExperience && (
-              <span className="text-[9px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span className="text-[9px] font-semibold bg-white/40 border border-white/30 text-stone-600 px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Check size={10} className="text-sage" />
                 <span>Experience: {answers.catExperience}</span>
               </span>
             )}
-          </div>
         </div>
       </div>
     </div>
+  </div>
   );
 };

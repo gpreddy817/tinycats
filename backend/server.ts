@@ -2,6 +2,10 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { GoogleGenerativeAI, Tool, FunctionDeclaration } from '@google/generative-ai';
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import User from './src/models/user.model.js';
 import { BREEDS } from './data/breedsData.js';
 import type { Breed } from './types/breed.js';
 
@@ -104,7 +108,7 @@ function getCatBreedDetails(breedId: string): Breed | null {
 
 // ─── Routes: Breeds ──────────────────────────────────────────────────────────
 app.get('/api/breeds', (_req, res) => {
-  res.json({ breeds: BREEDS.map(({ id, name, tags, traits, images, tagline, size, coatLength }) => ({ id, name, tags, traits, images, tagline, size, coatLength })) });
+  res.json({ breeds: BREEDS });
 });
 
 app.get('/api/breeds/:id', (req, res) => {
@@ -180,7 +184,7 @@ app.post('/api/recommend', async (req, res) => {
       "intro": "A warm 1-sentence opening message for the chat panel"
     }`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
@@ -235,7 +239,7 @@ app.post('/api/chat', async (req, res) => {
     }));
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.1-flash-lite',
       systemInstruction: systemPrompt,
     });
 
@@ -246,7 +250,158 @@ app.post('/api/chat', async (req, res) => {
     return res.json({ reply });
   } catch (err) {
     console.error('Chat error:', err);
-    return res.status(500).json({ error: 'Chat service unavailable', reply: "I'm having trouble connecting right now. Please try again in a moment." });
+    const message = err instanceof Error ? err.message : 'Chat service unavailable';
+    return res.status(500).json({ error: message, reply: "I'm having trouble connecting right now. Please try again in a moment." });
+  }
+});
+
+// ─── Authentication Configuration & DB Connection ──────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET ?? 'tinycats-super-secret-key';
+let isMongoConnected = false;
+
+async function connectDb() {
+  const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://0.0.0.0/tiny-cats';
+  try {
+    await mongoose.connect(MONGO_URI);
+    console.log('🐱 MongoDB connected successfully for auth');
+    isMongoConnected = true;
+  } catch (error) {
+    console.warn('⚠️ MongoDB connection failed. Auth will run with in-memory fallback.');
+  }
+}
+connectDb();
+
+interface InMemoryUser {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+}
+const inMemoryUsers: InMemoryUser[] = [];
+
+// ─── Auth Routes ──────────────────────────────────────────────────────────────
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    if (isMongoConnected) {
+      const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+      if (existingUser) {
+        return res.status(400).json({ error: 'Username or email already exists' });
+      }
+
+      const newUser = await User.create({ username, email, password: hashedPassword });
+      const token = jwt.sign({ userId: newUser._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(201).json({
+        success: true,
+        token,
+        user: { id: newUser._id, username: newUser.username, email: newUser.email }
+      });
+    } else {
+      const duplicate = inMemoryUsers.find(u => u.email === email || u.username === username);
+      if (duplicate) {
+        return res.status(400).json({ error: 'Username or email already exists' });
+      }
+
+      const id = Math.random().toString(36).substring(2, 15);
+      inMemoryUsers.push({ id, username, email, passwordHash: hashedPassword });
+      const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(201).json({
+        success: true,
+        token,
+        user: { id, username, email }
+      });
+    }
+  } catch (err) {
+    console.error('Registration error:', err);
+    return res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (isMongoConnected) {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({
+        success: true,
+        token,
+        user: { id: user._id, username: user.username, email: user.email }
+      });
+    } else {
+      const user = inMemoryUsers.find(u => u.email === email);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({
+        success: true,
+        token,
+        user: { id: user.id, username: user.username, email: user.email }
+      });
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
+    if (isMongoConnected) {
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      return res.json({
+        success: true,
+        user: { id: user._id, username: user.username, email: user.email }
+      });
+    } else {
+      const user = inMemoryUsers.find(u => u.id === decoded.userId);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+      return res.json({
+        success: true,
+        user: { id: user.id, username: user.username, email: user.email }
+      });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
 

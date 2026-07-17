@@ -84,18 +84,18 @@ export const ComparePage: React.FC = () => {
       </div>
 
       {/* Grid Comparison Table */}
-      <div className="bg-white rounded-3xl border border-stone-100 shadow-premium overflow-x-auto">
+      <div className="glass rounded-3xl shadow-premium overflow-x-auto bg-white/50 hover:bg-white/60 transition-colors duration-300">
         <div className="min-w-[650px] p-6 space-y-8">
           {/* Header Row */}
-          <div className="grid grid-cols-4 gap-6 items-start border-b border-stone-100 pb-6">
-            <div className="flex items-center justify-center h-full bg-stone-50/50 rounded-2xl p-4 text-center border border-dashed border-stone-200">
+          <div className="grid grid-cols-4 gap-6 items-start border-b border-white/20 pb-6">
+            <div className="flex items-center justify-center h-full bg-white/20 rounded-2xl p-4 text-center border border-dashed border-white/40 backdrop-blur-sm">
               <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider leading-relaxed">
                 Comparison Details
               </span>
             </div>
 
             {compareBreeds.map((breed) => (
-              <div key={breed.id} className="relative group bg-stone-50 rounded-2xl p-4 flex flex-col items-center text-center">
+              <div key={breed.id} className="relative group bg-white/35 glass rounded-2xl p-4 flex flex-col items-center text-center">
                 <button
                   onClick={() => handleRemove(breed.id)}
                   className="absolute top-2 right-2 p-1.5 bg-white text-stone-400 hover:text-primary rounded-full shadow-sm hover:scale-105 transition-all duration-200 cursor-pointer"
@@ -122,7 +122,7 @@ export const ComparePage: React.FC = () => {
               <button
                 key={i}
                 onClick={() => navigate('/browse')}
-                className="h-full border-2 border-dashed border-stone-200 hover:border-primary/30 bg-stone-50/20 hover:bg-stone-50 rounded-2xl p-8 flex flex-col items-center justify-center text-center text-stone-400 hover:text-primary transition-all duration-200 cursor-pointer"
+                className="h-full border-2 border-dashed border-white/40 hover:border-primary/30 bg-white/10 hover:bg-white/30 glass rounded-2xl p-8 flex flex-col items-center justify-center text-center text-stone-400 hover:text-primary transition-all duration-200 cursor-pointer"
               >
                 <Plus size={24} className="mb-2" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Add Cat</span>
@@ -167,7 +167,7 @@ export const ComparePage: React.FC = () => {
               <span className="font-semibold text-stone-500">Lifespan</span>
               {compareBreeds.map((b) => (
                 <span key={b.id} className="font-bold text-stone-700">
-                  {b.care.lifespan.min} - {b.care.lifespan.max} years
+                  {b.care?.lifespan ? `${b.care.lifespan.min} - ${b.care.lifespan.max} years` : '—'}
                 </span>
               ))}
               {Array.from({ length: 3 - compareBreeds.length }).map((_, i) => (

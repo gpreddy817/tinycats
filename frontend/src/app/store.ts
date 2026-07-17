@@ -3,6 +3,7 @@ import quizReducer from '@/features/quiz/quizSlice';
 import breedsReducer from '@/features/breeds/breedsSlice';
 import recommendationsReducer from '@/features/recommendations/recommendationsSlice';
 import chatReducer from '@/features/chat/chatSlice';
+import authReducer from '@/features/auth/authSlice';
 import { storageGet, storageSet } from '@/utils/storage';
 
 const preloadedState = {
@@ -22,6 +23,7 @@ export const store = configureStore({
     breeds: breedsReducer,
     recommendations: recommendationsReducer,
     chat: chatReducer,
+    auth: authReducer,
   },
   preloadedState,
 });

@@ -42,17 +42,17 @@ export const QuizStep: React.FC<QuizStepProps> = ({ step, answers, onAnswer }) =
       <button
         type="button"
         onClick={handleSelect}
-        className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all duration-300 w-full cursor-pointer focus:outline-none ${
+        className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition-all duration-300 w-full cursor-pointer focus:outline-none hover:scale-[1.01] hover:shadow-md ${
           isSelected
-            ? 'border-sage bg-sage-light/60 shadow-sm ring-1 ring-sage'
-            : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50'
+            ? 'border-sage bg-white/95 shadow-md ring-1 ring-sage'
+            : 'border-white/30 bg-white/40 glass hover:border-stone-300/40 hover:bg-white/60'
         }`}
       >
         <div
           className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
             isSelected
               ? 'bg-sage text-white'
-              : 'bg-stone-100 text-stone-600'
+              : 'bg-white/50 text-stone-600 border border-white/20'
           }`}
         >
           {icon}
@@ -164,7 +164,7 @@ export const QuizStep: React.FC<QuizStepProps> = ({ step, answers, onAnswer }) =
             <h3 className="font-display font-bold text-2xl text-stone-900 mb-2">Anything else we should know?</h3>
             <p className="text-sm text-stone-600">Specify vocal habits, grooming concerns, custom quirks or anything else. Gemini AI will incorporate this into your results!</p>
           </div>
-          <div className="bg-white rounded-2xl border border-stone-200 p-5 focus-within:ring-1 focus-within:ring-sage focus-within:border-sage transition-all duration-200">
+          <div className="glass bg-white/40 rounded-2xl border border-white/20 p-5 focus-within:ring-1 focus-within:ring-sage focus-within:border-sage transition-all duration-200 hover:bg-white/60">
             <div className="flex items-center gap-2 mb-3 text-stone-500">
               <MessageSquare size={18} />
               <span className="text-xs font-bold uppercase tracking-wider">Custom Preferences</span>

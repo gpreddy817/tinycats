@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import type { Message } from '@/types/chat';
 import { Bot, User } from 'lucide-react';
 
@@ -31,7 +32,31 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         }`}
       >
         {message.content ? (
-          <p className="whitespace-pre-line">{message.content}</p>
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+              li: ({ children }) => (
+                <li className={isAssistant ? 'text-stone-700' : 'text-white'}>
+                  {children}
+                </li>
+              ),
+              strong: ({ children }) => (
+                <strong className={`font-bold ${isAssistant ? 'text-stone-900 font-extrabold' : 'text-white font-extrabold'}`}>
+                  {children}
+                </strong>
+              ),
+              em: ({ children }) => <em className="italic">{children}</em>,
+              code: ({ children }) => (
+                <code className={`px-1 rounded text-xs ${isAssistant ? 'bg-stone-200 text-stone-800' : 'bg-primary-hover text-white'}`}>
+                  {children}
+                </code>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         ) : message.isStreaming ? (
           <div className="flex items-center gap-1 py-1">
             <span className="w-1.5 h-1.5 rounded-full bg-stone-500 animate-bounce" />

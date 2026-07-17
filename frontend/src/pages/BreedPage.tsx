@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
-import { fetchBreedDetail, selectBreedById, toggleSaveBreed, addToCompare, selectSavedBreeds, selectCompareList } from '@/features/breeds/breedsSlice';
+import { fetchBreedDetail, selectBreedById, toggleSaveBreed, addToCompare, selectSavedBreeds, selectCompareList, selectBreedsStatus } from '@/features/breeds/breedsSlice';
 import { TraitBar } from '@/components/TraitBar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Heart, Scale, Sparkles, AlertCircle } from 'lucide-react';
@@ -14,12 +14,25 @@ export const BreedPage: React.FC = () => {
   const breed = useAppSelector(selectBreedById(id || ''));
   const savedBreeds = useAppSelector(selectSavedBreeds);
   const compareList = useAppSelector(selectCompareList);
+  const status = useAppSelector(selectBreedsStatus);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchBreedDetail(id));
     }
   }, [id, dispatch]);
+
+  const isLoading = status === 'loading' || status === 'idle' || !breed || !breed.care;
+
+  if (isLoading && (!breed || !breed.care)) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center flex flex-col items-center justify-center">
+        <Sparkles className="animate-spin text-primary mb-4" size={48} />
+        <h2 className="font-display font-bold text-xl text-stone-800 mb-2">Loading Breed Details...</h2>
+        <p className="text-stone-500">Retrieving characteristics and care information.</p>
+      </div>
+    );
+  }
 
   if (!breed) {
     return (
@@ -124,6 +137,8 @@ export const BreedPage: React.FC = () => {
         </div>
       </div>
 
+
+
       {/* Main Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
         {/* Left Column: Stats & Traits */}
@@ -162,7 +177,9 @@ export const BreedPage: React.FC = () => {
               </div>
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Lifespan</span>
-                <span className="text-sm font-semibold text-stone-700">{breed.care.lifespan.min} - {breed.care.lifespan.max} years</span>
+                <span className="text-sm font-semibold text-stone-700">
+                  {breed.care?.lifespan ? `${breed.care.lifespan.min} - ${breed.care.lifespan.max} years` : '—'}
+                </span>
               </div>
               <div className="space-y-1 text-left">
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Allergen Level</span>
@@ -180,16 +197,58 @@ export const BreedPage: React.FC = () => {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <h4 className="font-semibold text-stone-800 text-sm">Grooming & Coat Care</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">Grooming Frequency: <strong className="capitalize">{breed.care.groomingFrequency}</strong>. Requires standard care suitable for coat length.</p>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Grooming Frequency: <strong className="capitalize">{breed.care?.groomingFrequency ?? '—'}</strong>. Requires standard care suitable for coat length.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <h4 className="font-semibold text-stone-800 text-sm">Exercise & Activity Needs</h4>
+                <p className="text-xs text-stone-600 leading-relaxed">{breed.care?.exerciseNeeds ?? '—'}</p>
               </div>
               <div className="space-y-1.5">
                 <h4 className="font-semibold text-stone-800 text-sm">Dietary Guidelines</h4>
-                <p className="text-xs text-stone-600 leading-relaxed">{breed.care.dietNotes}</p>
+                <p className="text-xs text-stone-600 leading-relaxed">{breed.care?.dietNotes ?? '—'}</p>
               </div>
+              {breed.care?.commonHealthIssues && breed.care.commonHealthIssues.length > 0 && (
+                <div className="space-y-1.5">
+                  <h4 className="font-semibold text-stone-800 text-sm flex items-center gap-1.5 text-amber-700">
+                    <AlertCircle size={14} />
+                    <span>Common Health Conditions</span>
+                  </h4>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Prone to: {breed.care.commonHealthIssues.join(', ')}.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Adoption Links */}
+      {breed.adoptionLinks && breed.adoptionLinks.length > 0 && (
+        <div className="bg-primary/5 rounded-3xl p-8 border border-primary/10 flex flex-col sm:flex-row items-center justify-between gap-6 mt-10">
+          <div className="text-left space-y-2">
+            <h3 className="font-display font-bold text-lg text-stone-900">Are you interested in adopting a {breed.name}?</h3>
+            <p className="text-xs text-stone-500 max-w-xl">
+              Consider checking breed-specific rescue organizations or registries to find your next feline family member.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {breed.adoptionLinks.map((link, idx) => (
+              <a
+                key={idx}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-primary text-white text-xs font-semibold px-5 py-2.5 rounded-full hover:bg-primary-hover transition-colors shadow-sm cursor-pointer"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

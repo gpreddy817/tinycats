@@ -1,6 +1,9 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { ChatState, Message, ChatContext } from '@/types/chat';
 import type { RootState } from '@/app/store';
+import { BREEDS } from '@/data/breedsData';
+import { setRecommendations } from '@/features/recommendations/recommendationsSlice';
+import type { BreedRecommendation } from '@/types/recommendations';
 
 const initialState: ChatState = {
   messages: [],
@@ -14,20 +17,22 @@ export const sendChatMessage = createAsyncThunk(
   'chat/send',
   async (
     { userMessage, context }: { userMessage: string; context: ChatContext | null },
-    { getState, rejectWithValue }
+    { getState, dispatch, rejectWithValue }
   ) => {
     const state = getState() as RootState;
-    const messages = state.chat.messages.filter((m) => m.role !== 'system').map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const history = state.chat.messages
+      .filter((m) => m.role !== 'system' && !m.isStreaming && m.content.trim() !== '')
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }],
+          messages: [...history, { role: 'user', content: userMessage }],
           userMessage,
           context: context
             ? {
@@ -38,8 +43,36 @@ export const sendChatMessage = createAsyncThunk(
         }),
       });
 
-      if (!res.ok) throw new Error('Chat service error');
-      const data = (await res.json()) as { reply: string };
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Chat service error');
+      }
+
+      // If recommendations are empty, parse the AI's reply to find mentioned breeds
+      const currentRecs = state.recommendations.results;
+      if (currentRecs.length === 0) {
+        const mentionedBreeds: BreedRecommendation[] = [];
+        
+        BREEDS.forEach((breed) => {
+          const escapedName = breed.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const regex = new RegExp(`\\b${escapedName}\\b`, 'i');
+          if (regex.test(data.reply)) {
+            mentionedBreeds.push({
+              breedId: breed.id,
+              breedName: breed.name,
+              matchScore: Math.max(70, 95 - mentionedBreeds.length * 5),
+              matchReasons: ['Recommended via AI Assistant Chat'],
+              aiSummary: breed.tagline,
+              rank: mentionedBreeds.length + 1,
+            });
+          }
+        });
+
+        if (mentionedBreeds.length > 0) {
+          dispatch(setRecommendations(mentionedBreeds));
+        }
+      }
+
       return data.reply;
     } catch (err) {
       return rejectWithValue((err as Error).message);

@@ -10,8 +10,6 @@ import {
   selectSavedBreeds,
   selectCompareList,
 } from './breedsSlice';
-import { MatchBadge } from '@/components/MatchBadge';
-
 interface BreedCardProps {
   breed: Breed;
   matchScore?: number;
@@ -53,7 +51,7 @@ export const BreedCard: React.FC<BreedCardProps> = ({
   };
 
   return (
-    <div className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-premium border border-stone-100 hover:border-primary-container/20 transition-all duration-300 flex flex-col h-full animate-fade-in">
+    <div className="group relative glass rounded-3xl overflow-hidden shadow-sm hover:shadow-premium hover:border-primary-container/30 hover:bg-white/60 transition-all duration-300 flex flex-col h-[560px] w-full animate-fade-in bg-white/50 border border-white/20">
       {/* Rank Indicator */}
       {rank !== undefined && (
         <div className="absolute top-4 left-4 z-10 w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-sm shadow-md">
@@ -62,7 +60,7 @@ export const BreedCard: React.FC<BreedCardProps> = ({
       )}
 
       {/* Image & Badges */}
-      <div className="relative aspect-5/4 overflow-hidden bg-stone-100">
+      <div className="relative h-48 flex-shrink-0 overflow-hidden bg-stone-100">
         <img
           src={breed.images.hero}
           alt={breed.name}
@@ -96,33 +94,35 @@ export const BreedCard: React.FC<BreedCardProps> = ({
           </button>
         </div>
 
-        {/* Match score Badge on image */}
-        {matchScore !== undefined && (
-          <div className="absolute bottom-4 left-4 z-10">
-            <MatchBadge score={matchScore} />
-          </div>
-        )}
+
       </div>
 
       {/* Content */}
-      <div className="p-6 flex-grow flex flex-col">
-        <div className="mb-2">
-          <h3 className="font-display font-bold text-xl text-stone-900 group-hover:text-primary transition-colors">
-            {breed.name}
-          </h3>
-          <p className="text-xs italic text-stone-500 line-clamp-1">{breed.tagline}</p>
+      <div className="p-6 flex-grow flex flex-col overflow-hidden">
+        <div className="mb-2 flex-shrink-0 h-14 overflow-hidden text-left">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-display font-bold text-xl text-stone-900 group-hover:text-primary transition-colors truncate">
+              {breed.name}
+            </h3>
+            {matchScore !== undefined && (
+              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full flex-shrink-0">
+                {matchScore}% Match
+              </span>
+            )}
+          </div>
+          <p className="text-xs italic text-stone-500 truncate">{breed.tagline}</p>
         </div>
 
-        <p className="text-sm text-stone-600 line-clamp-3 mb-4 flex-grow">
+        <div className="text-sm text-stone-600 line-clamp-3 mb-4 text-left">
           {breed.description}
-        </p>
+        </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className="flex flex-wrap gap-1.5 mb-4 flex-shrink-0 h-6 overflow-hidden">
           {breed.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="text-[10px] font-semibold bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full capitalize"
+              className="text-[10px] font-semibold bg-white/50 border border-white/40 text-stone-600 px-2 py-0.5 rounded-full capitalize backdrop-blur-[2px]"
             >
               {tag}
             </span>
@@ -131,7 +131,7 @@ export const BreedCard: React.FC<BreedCardProps> = ({
 
         {/* Match Reasons (AI recommendation contexts) */}
         {matchReasons && matchReasons.length > 0 && (
-          <div className="mb-4 bg-stone-50 rounded-2xl p-3 border border-stone-100 text-left">
+          <div className="mb-4 bg-white/30 rounded-2xl p-3 border border-white/20 text-left backdrop-blur-sm shadow-inner flex-shrink-0 h-20 overflow-hidden">
             <div className="flex items-center gap-1 text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-1.5">
               <Sparkles size={12} className="text-accent" />
               <span>Why it matches you</span>
@@ -140,7 +140,7 @@ export const BreedCard: React.FC<BreedCardProps> = ({
               {matchReasons.slice(0, 2).map((reason, idx) => (
                 <li key={idx} className="text-xs text-stone-600 leading-relaxed flex items-start gap-1">
                   <span className="text-primary">•</span>
-                  <span>{reason}</span>
+                  <span className="truncate">{reason}</span>
                 </li>
               ))}
             </ul>
@@ -150,7 +150,7 @@ export const BreedCard: React.FC<BreedCardProps> = ({
         {/* Footer Link */}
         <Link
           to={`/breed/${breed.id}`}
-          className="mt-auto pt-4 border-t border-stone-100 flex items-center justify-between text-sm font-semibold text-primary hover:text-primary-hover group/link"
+          className="mt-auto pt-4 border-t border-white/30 flex items-center justify-between text-sm font-semibold text-primary hover:text-primary-hover group/link flex-shrink-0"
         >
           <span>View Breed Profile</span>
           <ArrowRight size={16} className="transform group-hover/link:translate-x-1 transition-transform" />

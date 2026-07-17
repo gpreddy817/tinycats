@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { RecommendationsState, BreedRecommendation } from '@/types/recommendations';
 import type { QuizAnswers } from '@/types/quiz';
 import type { RootState } from '@/app/store';
@@ -41,6 +41,11 @@ const recommendationsSlice = createSlice({
       state.error = null;
       state.generatedAt = null;
     },
+    setRecommendations(state, action: PayloadAction<BreedRecommendation[]>) {
+      state.results = action.payload;
+      state.status = 'succeeded';
+      state.generatedAt = new Date().toISOString();
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -60,7 +65,7 @@ const recommendationsSlice = createSlice({
   },
 });
 
-export const { clearRecommendations } = recommendationsSlice.actions;
+export const { clearRecommendations, setRecommendations } = recommendationsSlice.actions;
 
 export const selectRecommendations = (s: RootState) => s.recommendations.results;
 export const selectRecommendationsStatus = (s: RootState) => s.recommendations.status;

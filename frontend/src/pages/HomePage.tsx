@@ -67,7 +67,7 @@ export const HomePage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1: Personality Quiz */}
-          <div className="bg-white rounded-3xl p-8 border border-stone-100 shadow-sm flex flex-col justify-between hover:shadow-premium transition-all duration-300">
+          <div className="glass rounded-3xl p-8 shadow-sm flex flex-col justify-between hover:shadow-premium hover:bg-white/60 hover:scale-[1.02] hover:border-primary-container/30 transition-all duration-300 bg-white/50">
             <div className="space-y-4">
               <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center border border-primary/20">
                 <CheckCircle size={24} />
@@ -84,7 +84,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Card 2: AI Recommendations */}
-          <div className="bg-white rounded-3xl p-8 border border-stone-100 shadow-sm flex flex-col justify-between hover:shadow-premium transition-all duration-300">
+          <div className="glass rounded-3xl p-8 shadow-sm flex flex-col justify-between hover:shadow-premium hover:bg-white/60 hover:scale-[1.02] hover:border-primary-container/30 transition-all duration-300 bg-white/50">
             <div className="space-y-4">
               <div className="w-12 h-12 bg-sage/10 text-sage rounded-2xl flex items-center justify-center border border-sage/20">
                 <Sparkles size={24} />
@@ -100,7 +100,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Card 3: Interactive Chat */}
-          <div className="bg-white rounded-3xl p-8 border border-stone-100 shadow-sm flex flex-col justify-between hover:shadow-premium transition-all duration-300">
+          <div className="glass rounded-3xl p-8 shadow-sm flex flex-col justify-between hover:shadow-premium hover:bg-white/60 hover:scale-[1.02] hover:border-primary-container/30 transition-all duration-300 bg-white/50">
             <div className="space-y-4">
               <div className="w-12 h-12 bg-accent/10 text-primary-hover rounded-2xl flex items-center justify-center border border-accent/20">
                 <Activity size={24} />
